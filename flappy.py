@@ -52,8 +52,8 @@ class DQNAgent:
         self.observe_rate = 10000 # frames before we start training.
         self.learning_rate = 0.001
         self.model = self._build_model()
-        self.loss: List[float] = []
-        self.acc: List[float] = []
+        self.loss_history: List[float] = []
+        self.acc_history: List[float] = []
 
     def _build_model(self):
 
@@ -62,8 +62,6 @@ class DQNAgent:
 
         # With the functional API we need to define the inputs.
         frames_input = Input(self.data_shape, name='frames')
-
-        actions_input = Input((self.action_size,), name='mask')
 
         # Assuming that the input frames are still encoded from 0 to 255. Transforming to [0, 1].
         normalized = Lambda(lambda x: x / 255.0)(frames_input)
@@ -147,12 +145,12 @@ class DQNAgent:
                 y=actions * Q_values[:, None],
                 epochs=1, batch_size=len(start_states), verbose=0,
             )
-            self.loss.append(history.history["loss"])
-            self.acc.append(history.history["acc"])
+            self.loss_history.append(history.history["loss"])
+            self.acc_history.append(history.history["acc"])
             #if self.epsilon > self.epsilon_min:
         #    self.epsilon *= self.epsilon_decay
 
-    def load(self, load_memory=False):
+    def load(self):
         try:
             self.model.load_weights("save/flappy.h5")
         except OSError as e:
@@ -162,29 +160,35 @@ class DQNAgent:
             with open("save/data.json", "r") as file:
                 data = json.loads(file.read())
                 self.epsilon = data["epsilon"]
+                self.loss_history = data["loss_history"]
+                self.acc_history = data["acc_history"]
         except FileNotFoundError as e:
             logger.warn("Unable to load saved memory.")
 
-    def save(self, save_memory=False):
+    def save(self):
         self.model.save_weights("save/flappy.h5")
         with open("save/data.json", "w+") as file:
             file.write(
                 json.dumps(
-                    {"epsilon": self.epsilon}, indent=4,
+                    {
+                        "epsilon": self.epsilon,
+                        "loss_history": self.loss_history,
+                        "acc_history": self.acc_history
+                    }, indent=4,
                 )
             )
 
     def display_data(self):
         # list all data in history
         # summarize history for accuracy
-        plt.plot(self.acc)
+        plt.plot(self.acc_history)
         plt.title('Accuracy')
         plt.ylabel('accuracy')
         plt.show()
         # summarize history for loss
         plt.plot(history.history['loss'])
         plt.title('model loss')
-        plt.plot(self.loss)
+        plt.plot(self.loss_history)
         plt.ylabel('loss')
         plt.show()
 
@@ -279,7 +283,7 @@ if __name__ == "__main__":
 
         FRAME_COUNT += game_data.total_frames()
         logger.debug("Finished EPISODE.", frame_count=FRAME_COUNT, episode=e, score=game_data.score, epsilon=agent.epsilon, memory_len=len(agent.memory), game_length=len(game_data))
-        logger.debug("Stats", loss=np.mean(agent.loss), acc=np.mean(agent.acc))
+        logger.debug("Stats", loss=np.mean(agent.loss_history), acc=np.mean(agent.acc_history))
 
 
 #cv2.imwrite(f"tmp/{a}_screen.png", a._grab_screen())

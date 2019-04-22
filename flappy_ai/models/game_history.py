@@ -8,7 +8,10 @@ from typing import List
 @attr.s(auto_attribs=True)
 class GameHistory:
     size: int
-    _buffer: List[GameData] = attr.ib(default=attr.Factory(list), init=False)
+    _buffer: deque = attr.ib(default=attr.Factory(deque), init=False)
+
+    def __attrs_post_init__(self):
+        self._buffer = deque(maxlen=self.size)
 
     def append(self, game_data: GameData):
         if len(self._buffer) > self.size:

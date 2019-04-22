@@ -1,7 +1,7 @@
 import attr
 import numpy as np
-from typing import List
 from flappy_ai.models.memory_item import MemoryItem
+from collections import deque
 
 @attr.s(auto_attribs=True)
 class GameData:
@@ -9,7 +9,7 @@ class GameData:
     # How many frames of history should we merge into an added frame.
     movement_frames: int = attr.ib(default=4)
     score: int = attr.ib(default=0)
-    _memory: List[MemoryItem] = attr.ib(default=attr.Factory(list), init=False)
+    _memory: deque = attr.ib(default=attr.Factory(list), init=False)
 
     def total_frames(self) -> int:
         return len(self._memory)
