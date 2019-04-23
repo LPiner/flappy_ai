@@ -19,7 +19,7 @@ TARGET_ITERATIONS = int(EPOCHS / BATCH_SIZE)
 
 if __name__ == "__main__":
     KERAS_PROCESS = KerasProcess()
-    KERAS_PROCESS.start()
+    KERAS_PROCESS.start(batch_size=BATCH_SIZE)
     COMPLETED_ITERATIONS = 0
     last_update = time.time()
 

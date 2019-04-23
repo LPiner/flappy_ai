@@ -7,7 +7,11 @@ from flappy_ai.models.process_base import ProcessBase
 import numpy as np
 import attr
 import time
-import atexit
+from structlog import get_logger
+
+
+logger = get_logger(__name__)
+
 
 
 
@@ -37,7 +41,11 @@ class GameProcess(ProcessBase):
                 child_pipe.send(
                     PredictionRequest(data=np.array(game_data[-1].state))
                 )
+                start_wait_time = time.time()
                 action: PredictionResult = child_pipe.recv()
+                wait_time = time.time() - start_wait_time
+                if wait_time > .1:
+                    logger.warn("[GameProcess] Took too long to receive action!", wait_time=wait_time)
                 #action = agent.act(np.array(game_data[-1].state))
                 next_state, reward, done = env.step(action.result)
                 #cv2.imwrite(f"tmp/{game_data.total_frames()}.png", next_state)
