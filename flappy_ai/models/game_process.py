@@ -32,12 +32,12 @@ class GameProcess(ProcessBase):
             loop_times: List[float] = []
 
             # https://danieltakeshi.github.io/2016/11/25/frame-skipping-and-preprocessing-for-deep-q-networks-on-atari-2600-games/
-            # Each memory item should have 4 consecutive
             screen_history: List[np.array] = []
             while not env.game_over():
 
                 # A note for future games, it may be better to skip frames and repeat the last
                 # action during that time.
+                # We cannot really skip frames here as its already slow to get them.
                 start_time = time.time()
                 while len(screen_history) < 4:
                     state, reward, done = env.step(0)

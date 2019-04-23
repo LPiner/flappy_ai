@@ -13,16 +13,15 @@ CLIENTS: List[GameProcess] = []
 KERAS_PROCESS = None
 
 # https://towardsdatascience.com/epoch-vs-iterations-vs-batch-size-4dfb9c7ce9c9
-EPOCHS = 100000 # TODO, figure out a optimal number
 BATCH_SIZE = 32
-TARGET_ITERATIONS = int(EPOCHS / BATCH_SIZE)
+EPISODES = 10000 # TODO, figure out a optimal number
 
 if __name__ == "__main__":
     KERAS_PROCESS = KerasProcess()
     KERAS_PROCESS.start(batch_size=BATCH_SIZE)
     # Give the keras process time to spin up, load models, etc.
     time.sleep(5)
-    COMPLETED_ITERATIONS = 0
+    COMPLETED_EPISODES= 0
     last_update = time.time()
     TRAINING_REQUESTS: List[TrainingRequest] = []
 
@@ -47,7 +46,7 @@ if __name__ == "__main__":
                     # Currently I consider set of GameData to be a batch size of one.
                     # This may be over training, idk
                     TRAINING_REQUESTS.append(request)
-                    COMPLETED_ITERATIONS += len(request.game_data)
+                    COMPLETED_EPISODES += 1
 
         # Prune off any completed clients
         CLIENTS = [x for x in CLIENTS if x.is_alive()]
@@ -55,7 +54,7 @@ if __name__ == "__main__":
         if (time.time() - last_update) / 60 > 5:
             last_update = time.time()
             # Only print updates and save every 5 minutes
-            logger.debug("UPDATE", target_iterations=TARGET_ITERATIONS, completed_interations=COMPLETED_ITERATIONS)
+            logger.debug("UPDATE", target_episodes=EPISODES, completed_episodes=COMPLETED_EPISODES)
 
         # Do the batch training after all the clients have completed
         # Maybe I need to abstract the training out to it's own process?
@@ -64,12 +63,12 @@ if __name__ == "__main__":
                 KERAS_PROCESS.parent_pipe.send(TRAINING_REQUESTS.pop())
 
         # If we are still below the targets interations, refill the clients and continue
-        if COMPLETED_ITERATIONS >= TARGET_ITERATIONS:
+        if COMPLETED_EPISODES >= EPISODES:
             if CLIENTS:
                 continue
             else:
                 break
-        elif COMPLETED_ITERATIONS < TARGET_ITERATIONS and not CLIENTS:
+        elif COMPLETED_EPISODES < EPISODES and not CLIENTS:
             while len(CLIENTS) < MAX_CLIENTS:
                 c = GameProcess()
                 CLIENTS.append(c)
