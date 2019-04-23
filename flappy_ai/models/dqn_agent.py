@@ -9,6 +9,7 @@ import json
 from keras.models import Sequential
 from keras.layers import Conv2D, Flatten, Dense, BatchNormalization
 from keras.optimizers import RMSprop
+import matplotlib.pyplot as plt
 from typing import List
 import tensorflow as tf
 from structlog import get_logger
@@ -50,6 +51,24 @@ class DQNAgent:
         self.model = self._build_model()
         self.loss_history: List[float] = []
         self.acc_history: List[float] = []
+
+
+        # Plotting Stuff
+        plt.ion()
+        figure = plt.figure()
+        axes = figure.add_subplot(111)
+        self.loss_history_plot_axes = figure.add_subplot(211)
+        self.acc_history_plot_axes = figure.add_subplot(212)
+
+        self.loss_history_plot, = self.loss_history_plot_axes.plot([], [], label='loss')
+        self.acc_history_plot, = self.acc_history_plot_axes.plot([], [], label='acc')
+        # plt.show()
+        self.loss_history_plot_axes.set_xlabel('Entries')
+        self.loss_history_plot_axes.set_ylabel('Loss Value')
+        self.acc_history_plot_axes.set_xlabel('Entries')
+        self.acc_history_plot_axes.set_ylabel('Acc Value')
+        # plt.title("Simple Plot")
+        plt.legend()
 
     def _build_model(self):
 
@@ -119,6 +138,7 @@ class DQNAgent:
         plt.imshow(start_states[0][:,:,0], cmap=plt.cm.binary)
         though the colors will be fucked
         """
+        history = None
         for game_data in batch_games:
             # we're offset by one here as the finished state for one is the start state for the next, I think.
             #start_states = np.array([x.merged_state for x in game_data][:-1])
@@ -144,10 +164,24 @@ class DQNAgent:
                 #epochs=1, batch_size=len(start_states), verbose=0, callbacks=[tensorboard]
                 epochs=1, batch_size=len(start_states), verbose=0
             )
+
+        if history:
             self.loss_history.append(history.history["loss"])
             self.acc_history.append(history.history["acc"])
             #if self.epsilon > self.epsilon_min:
         #    self.epsilon *= self.epsilon_decay
+
+    def update_plots(self):
+        self.loss_history_plot.set_data((range(0, len(self.loss_history))), self.loss_history)
+        self.acc_history_plot.set_data((range(0, len(self.acc_history))), self.acc_history)
+
+        self.loss_history_plot_axes.relim()
+        self.loss_history_plot_axes.autoscale_view(True, True, True)
+        self.acc_history_plot_axes.relim()
+        self.acc_history_plot_axes.autoscale_view(True, True, True)
+        plt.draw()
+        plt.pause(0.1)
+
 
     def load(self):
         try:
@@ -173,6 +207,6 @@ class DQNAgent:
                         "epsilon": self.epsilon,
                         "loss_history": self.loss_history,
                         "acc_history": self.acc_history
-                    }, indent=4,
+                    },
                 )
             )

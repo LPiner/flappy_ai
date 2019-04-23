@@ -1,5 +1,6 @@
 from multiprocessing import Pipe, Process
 from multiprocessing.connection import PipeConnection
+from typing import List
 from flappy_ai.models.game import Game
 from flappy_ai.models.game_data import GameData
 from flappy_ai.models import TrainingRequest, PredictionRequest, MemoryItem, PredictionResult
@@ -28,7 +29,10 @@ class GameProcess(ProcessBase):
                 # Shutdown request
                 return
 
+            loop_times: List[float] = []
             while not env.game_over():
+                # A note for future games, it may be better to skip frames and repeat the last
+                # action during that time.
                 start_time = time.time()
                 if not game_data.score:
                     state, reward, done = env.step(0)
@@ -75,13 +79,17 @@ class GameProcess(ProcessBase):
                 )
 
                 loop_time = time.time() - start_time
-                if loop_time > .25:
-                    logger.warn("[GameProcess] Took to long to complete loop!", loop_time=loop_time)
+                if loop_time > .10:
+                    logger.warn("[GameProcess] Took to long to complete loop, tossing game!", loop_time=loop_time)
+                    return
+                # Handy to know how long it takes to complete a game.
+                loop_times.append(loop_time)
 
         # Send the session data up to the main process.
         # Do not exit until the data has been read.
         # Exiting before causes the data to be lost.
         child_pipe.send(TrainingRequest(game_data=game_data))
+        logger.debug("[GameProcess] Completed.", average_loop_time=np.mean(loop_times))
         while child_pipe.poll():
             time.sleep(1)
 

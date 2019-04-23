@@ -5,6 +5,7 @@ from flappy_ai.models.process_base import ProcessBase
 import numpy as np
 import attr
 import time
+import matplotlib.pyplot as plt
 from structlog import get_logger
 
 logger = get_logger(__name__)
@@ -20,6 +21,7 @@ class KerasProcess(ProcessBase):
         last_update = time.time()
         AGENT = DQNAgent(Game.actions())
         AGENT.load()
+        AGENT.update_plots()
 
         while True:
             if not child_pipe.poll():
@@ -37,6 +39,8 @@ class KerasProcess(ProcessBase):
                     start_time = time.time()
                     AGENT.fit_batch(AGENT.memory.get_sample_batch(batch_size=batch_size))
                     logger.debug("[KerasProcess] Fit Batch Complete", runtime=time.time()-start_time, batch_size=batch_size)
+                    # Please note that the plt will be frozen until this call.
+                    AGENT.update_plots()
 
                 if AGENT.epsilon > AGENT.epsilon_min and len(AGENT.memory) > AGENT.observe_rate:
                     AGENT.epsilon -= (AGENT.start_epsilon - AGENT.epsilon_min) / AGENT.explore_rate

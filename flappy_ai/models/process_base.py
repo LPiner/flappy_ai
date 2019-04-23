@@ -26,6 +26,11 @@ class ProcessBase:
         raise NotImplementedError
 
     def start(self, *args, **kwargs):
+        """
+        Please note that any changes you make in the _process_execute function will be used live.
+        Every time a new process is opened the module is imported again. This allows you to
+        make changes to the clients while the main process is still running.
+        """
         self._child_process: Process = Process(target=self._process_execute, args=(self.child_pipe, ), kwargs=kwargs)
         self._child_process.start()
 
@@ -44,7 +49,7 @@ class ProcessBase:
         if self.parent_pipe:
             # Processes upon receving None should quit.
             self.parent_pipe.send(None)
-        timeout_sec = 5
+        timeout_sec = 10
         p_sec = 0
         for second in range(timeout_sec):
             if self._child_process.is_alive():

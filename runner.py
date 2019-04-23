@@ -55,7 +55,7 @@ if __name__ == "__main__":
         if (time.time() - last_update) / 60 > 5:
             last_update = time.time()
             # Only print updates and save every 5 minutes
-            logger.debug("UPDATE", completed_interations=COMPLETED_ITERATIONS)
+            logger.debug("UPDATE", target_iterations=TARGET_ITERATIONS, completed_interations=COMPLETED_ITERATIONS)
 
         # Do the batch training after all the clients have completed
         # Maybe I need to abstract the training out to it's own process?
