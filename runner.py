@@ -8,12 +8,12 @@ from structlog import get_logger
 
 logger = get_logger(__name__)
 
-MAX_CLIENTS = 2
+MAX_CLIENTS = 5
 CLIENTS: List[GameProcess] = []
 KERAS_PROCESS = None
 
 # https://towardsdatascience.com/epoch-vs-iterations-vs-batch-size-4dfb9c7ce9c9
-EPOCHS = 1000 # TODO, figure out a optimal number
+EPOCHS = 100000 # TODO, figure out a optimal number
 BATCH_SIZE = 32
 TARGET_ITERATIONS = int(EPOCHS / BATCH_SIZE)
 

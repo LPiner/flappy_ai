@@ -45,7 +45,10 @@ class GameProcess(ProcessBase):
                 action: PredictionResult = child_pipe.recv()
                 wait_time = time.time() - start_wait_time
                 if wait_time > .1:
-                    logger.warn("[GameProcess] Took too long to receive action!", wait_time=wait_time)
+                    logger.warn("[GameProcess] Took too long to receive action, tossing game!", wait_time=wait_time)
+                    # If we take too long for an action then the states will not line up
+                    # So we just toss the game.
+                    return
                 #action = agent.act(np.array(game_data[-1].state))
                 next_state, reward, done = env.step(action.result)
                 #cv2.imwrite(f"tmp/{game_data.total_frames()}.png", next_state)
