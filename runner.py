@@ -27,6 +27,9 @@ if __name__ == "__main__":
     TRAINING_REQUESTS: List[TrainingRequest] = []
 
     while True:
+        if not KERAS_PROCESS.is_alive():
+            KERAS_PROCESS.start(batch_size=BATCH_SIZE)
+            logger.warn("Keras process died....")
 
         # Calls join on completed processes but does not block. =)
         multiprocessing.active_children()
@@ -61,17 +64,16 @@ if __name__ == "__main__":
                 KERAS_PROCESS.parent_pipe.send(TRAINING_REQUESTS.pop())
 
         # If we are still below the targets interations, refill the clients and continue
-        if COMPLETED_ITERATIONS < TARGET_ITERATIONS and not CLIENTS:
+        if COMPLETED_ITERATIONS >= TARGET_ITERATIONS:
+            if CLIENTS:
+                continue
+            else:
+                break
+        elif COMPLETED_ITERATIONS < TARGET_ITERATIONS and not CLIENTS:
             while len(CLIENTS) < MAX_CLIENTS:
                 c = GameProcess()
                 CLIENTS.append(c)
                 c.start()
-        # If we af above or at the limit but still have clients.
-        elif COMPLETED_ITERATIONS >= TARGET_ITERATIONS and CLIENTS:
-            continue
-        else:
-            # Done
-            break
 
 
 
