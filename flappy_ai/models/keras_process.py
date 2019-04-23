@@ -32,15 +32,16 @@ class KerasProcess(ProcessBase):
                 result = AGENT.predict(request.data)
                 child_pipe.send(PredictionResult(result=result))
             elif isinstance(request, TrainingRequest):
-                AGENT.memory.append(request.game_data)
+                for item in request.game_data:
+                    AGENT.memory.append(item)
+                    if len(AGENT.memory) > AGENT.observe_rate:
+                        start_time = time.time()
+                        AGENT.fit_batch(AGENT.memory.get_sample_batch(batch_size=batch_size))
+                        #logger.debug("[KerasProcess] Fit Batch Complete", runtime=time.time()-start_time, batch_size=batch_size)
 
-                if len(AGENT.memory) > AGENT.observe_rate:
-                    start_time = time.time()
-                    AGENT.fit_batch(AGENT.memory.get_sample_batch(batch_size=batch_size))
-                    logger.debug("[KerasProcess] Fit Batch Complete", runtime=time.time()-start_time, batch_size=batch_size)
+                        if AGENT.epsilon > AGENT.epsilon_min and len(AGENT.memory) > AGENT.observe_rate:
+                            AGENT.epsilon -= (AGENT.start_epsilon - AGENT.epsilon_min) / AGENT.explore_rate
 
-                if AGENT.epsilon > AGENT.epsilon_min and len(AGENT.memory) > AGENT.observe_rate:
-                    AGENT.epsilon -= (AGENT.start_epsilon - AGENT.epsilon_min) / AGENT.explore_rate
             elif request is None:
                 AGENT.save()
                 # Shutdown request

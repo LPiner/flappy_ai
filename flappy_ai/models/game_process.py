@@ -30,21 +30,30 @@ class GameProcess(ProcessBase):
                 return
 
             loop_times: List[float] = []
+
+            # https://danieltakeshi.github.io/2016/11/25/frame-skipping-and-preprocessing-for-deep-q-networks-on-atari-2600-games/
+            # Each memory item should have 4 consecutive
+            screen_history: List[np.array] = []
             while not env.game_over():
+
                 # A note for future games, it may be better to skip frames and repeat the last
                 # action during that time.
                 start_time = time.time()
-                if not game_data.score:
+                while len(screen_history) < 4:
                     state, reward, done = env.step(0)
+                    screen_history.append(state)
 
-                    item = MemoryItem(
-                        state=state,
-                        action=[1, 0],
-                    )
-                    game_data.append(item)
+                # Each state is a array of the last 4 screens [screen1, 2, 3, 4])
+                # This give the network understanding of movement.
+                # In this case the network will be expecting an input shape of (4, 160, 120)
+                # from there we can use stack to reshape the images into a single image (160, 120, 4)
+                # I'm not sure if this works?
+                # Maybe i need 4 seperate inputs to the network instead.
+                state = np.stack(np.array(screen_history[-4:]), axis=2)
+
 
                 child_pipe.send(
-                    PredictionRequest(data=np.array(game_data[-1].state))
+                    PredictionRequest(data=state)
                 )
                 start_wait_time = time.time()
                 action: PredictionResult = child_pipe.recv()
@@ -54,14 +63,21 @@ class GameProcess(ProcessBase):
                     # If we take too long for an action then the states will not line up
                     # So we just toss the game.
                     return
-                #action = agent.act(np.array(game_data[-1].state))
                 next_state, reward, done = env.step(action.result)
+                screen_history.append(next_state)
+
+                next_state = np.stack(np.array(screen_history[-4:]), axis=2)
                 #cv2.imwrite(f"tmp/{game_data.total_frames()}.png", next_state)
 
                 # The reward goes back one memory item since that is the action that created it.
                 # same wth the terminal state.
-                game_data[-1].reward = reward
-                game_data[-1].is_terminal = done
+                if len(game_data) > 0:
+                    game_data[-1].reward = reward
+                    game_data[-1].is_terminal = done
+                    game_data[-1].next_state = state
+
+                if done:
+                    break
 
                 game_data.score += reward
 
@@ -79,9 +95,9 @@ class GameProcess(ProcessBase):
                 )
 
                 loop_time = time.time() - start_time
-                if loop_time > .10:
-                    logger.warn("[GameProcess] Took to long to complete loop, tossing game!", loop_time=loop_time)
-                    return
+                #if loop_time > .10:
+                #    logger.warn("[GameProcess] Took to long to complete loop, tossing game!", loop_time=loop_time)
+                #    return
                 # Handy to know how long it takes to complete a game.
                 loop_times.append(loop_time)
 

@@ -219,23 +219,30 @@ if __name__ == "__main__":
                 continue
             else:
                 start_time = time.time()
-            if not game_data.score:
                 state, reward, done = env.step(0)
 
                 item = MemoryItem(
                     state=state,
                     action=[1, 0],
+                    next_state=None
                 )
                 game_data.append(item)
 
-            action = agent.act(np.array(game_data[-1].state))
+            if len(game_data) > 0:
+                state, _, _ = env.step(0)
+            else:
+                state = game_data[1].state
+
+            action = agent.act(np.array(state))
             next_state, reward, done = env.step(action)
             #cv2.imwrite(f"tmp/{game_data.total_frames()}.png", next_state)
 
             # The reward goes back one memory item since that is the action that created it.
             # same wth the terminal state.
-            game_data[-1].reward = reward
-            game_data[-1].is_terminal = done
+            if len(game_data) > 0:
+                game_data[-1].reward = reward
+                game_data[-1].is_terminal = done
+                game_data[-1].next_state = state
 
             game_data.score += reward
             if action == 0:

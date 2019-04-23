@@ -47,7 +47,7 @@ if __name__ == "__main__":
                     # Currently I consider set of GameData to be a batch size of one.
                     # This may be over training, idk
                     TRAINING_REQUESTS.append(request)
-                    COMPLETED_ITERATIONS += 1
+                    COMPLETED_ITERATIONS += len(request.game_data)
 
         # Prune off any completed clients
         CLIENTS = [x for x in CLIENTS if x.is_alive()]

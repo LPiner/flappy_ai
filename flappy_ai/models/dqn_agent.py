@@ -4,6 +4,7 @@ import numpy as np
 from cattr import structure, unstructure
 import time
 from flappy_ai.models.game_history import GameHistory
+from flappy_ai.models.memory_item import MemoryItem
 from flappy_ai.models.game_data import GameData
 from flappy_ai.models.fit_data import FitData
 from keras.layers import Dense, Lambda, Input
@@ -26,7 +27,7 @@ EPISODES = 100000
 
 class DQNAgent:
     def __init__(self, action_size):
-        self.data_shape = (160, 120, 1)
+        self.data_shape = (160, 120, 4)
         self.action_size = action_size
         self.memory = GameHistory(
             size=100000,
@@ -106,7 +107,7 @@ class DQNAgent:
         return action
 
     #def fit_batch(self, start_states, actions, rewards, next_states, is_terminal):
-    def fit_batch(self, batch_games: List[GameData]):
+    def fit_batch(self, batch_items: List[MemoryItem]):
         """Do one deep Q learning iteration.
 
         Params:
@@ -122,41 +123,36 @@ class DQNAgent:
         plt.imshow(start_states[0][:,:,0], cmap=plt.cm.binary)
         though the colors will be fucked
         """
-        history = None
-        for game_data in batch_games:
-            # we're offset by one here as the finished state for one is the start state for the next, I think.
-            #start_states = np.array([x.merged_state for x in game_data][:-1])
-            start_states = np.array([x.state for x in game_data][:-1])
-            actions = np.array([x.action for x in game_data][:-1])
-            rewards = np.array([x.reward for x in game_data][:-1])
-            #next_states = np.array([x.merged_state for x in game_data][1:])
-            next_states = np.array([x.state for x in game_data][1:])
-            is_terminal = np.array([x.is_terminal for x in game_data][:-1])
+        start_states = np.array([x.state for x in batch_items])
+        actions = np.array([x.action for x in batch_items])
+        rewards = np.array([x.reward for x in batch_items])
+        next_states = np.array([x.next_state for x in batch_items])
+        is_terminal = np.array([x.is_terminal for x in batch_items])
+        #start_states = np.array([x.merged_state for x in game_data][:-1])
 
-            # First, predict the Q values of the next states.
-            next_Q_values = self.model.predict(next_states)
-            # The Q values of the terminal states is 0 by definition, so override them
-            next_Q_values[is_terminal] = 0
-            # The Q values of each start state is the reward + gamma * the max next state Q value
-            Q_values = rewards + self.gamma * np.max(next_Q_values, axis=1)
-            # Fit the keras model. Note how we are passing the actions as the mask and multiplying
-            # the targets by the actions.
-            #tensorboard = TensorBoard(log_dir=f"logs/")
-            history = self.model.fit(
-                x=start_states,
-                y=actions * Q_values[:, None],
-                #epochs=1, batch_size=len(start_states), verbose=0, callbacks=[tensorboard]
-                epochs=1, batch_size=len(start_states), verbose=0
-            )
+        # First, predict the Q values of the next states.
+        next_Q_values = self.model.predict(next_states)
+        # The Q values of the terminal states is 0 by definition, so override them
+        next_Q_values[is_terminal] = 0
+        # The Q values of each start state is the reward + gamma * the max next state Q value
+        Q_values = rewards + self.gamma * np.max(next_Q_values, axis=1)
+    # Fit the keras model. Note how we are passing the actions as the mask and multiplying
+        # the targets by the actions.
+        #tensorboard = TensorBoard(log_dir=f"logs/")
+        history = self.model.fit(
+            x=start_states,
+            y=actions * Q_values[:, None],
+            #epochs=1, batch_size=len(start_states), verbose=0, callbacks=[tensorboard]
+            epochs=1, batch_size=len(start_states), verbose=0
+        )
 
-        if history:
-            self.fit_history.append(
-                FitData(
-                    epsilon=self.epsilon,
-                    loss=history.history["loss"][0],
-                    accuracy=history.history["acc"][0],
-                )
+        self.fit_history.append(
+            FitData(
+                epsilon=self.epsilon,
+                loss=history.history["loss"][0],
+                accuracy=history.history["acc"][0],
             )
+        )
 
     def load(self):
         try:
@@ -167,7 +163,10 @@ class DQNAgent:
         try:
             with open("save/data.json", "r") as file:
                 data = json.loads(file.read())
-                self.fit_history: List[FitData] = structure(data.get("fit_history", []))
+                self.fit_history: List[FitData] = []
+                for item in data.get("fit_history", []):
+                    self.fit_history.append(structure(item, FitData))
+
                 if self.fit_history:
                     self.epsilon = self.fit_history[-1].epsilon
         except FileNotFoundError as e:

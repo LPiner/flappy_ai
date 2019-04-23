@@ -34,6 +34,12 @@ class Game:
     def actions():
         return 2
 
+    @staticmethod
+    def state_shape() -> (int, int):
+        return (160, 120)
+        # If ever want to go back to single image greyscale
+        #return (160, 120, 1)
+
     def quit(self):
         if self._browser:
             self._browser.close()
