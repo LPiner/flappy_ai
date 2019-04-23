@@ -1,6 +1,8 @@
 import attr
 from selenium import webdriver
 from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.firefox.options import Options
+from selenium.webdriver.firefox.webdriver import FirefoxWebElement
 import time
 from flappy_ai.types.keys import Keys
 from flappy_ai.factories.selenium_key_factory import selenium_key_factory
@@ -8,6 +10,7 @@ from flappy_ai.models.image import Image
 import numpy
 import mss
 from structlog import get_logger
+import numpy as np
 import cv2
 
 logger = get_logger(__name__)
@@ -15,36 +18,54 @@ logger = get_logger(__name__)
 
 @attr.s(auto_attribs=True)
 class Game:
+    headless: bool = attr.ib(default=False)
+    _game_over: bool =attr.ib(init=False, default=False)
     _browser: webdriver = attr.ib(init=False)
+    _game_element: FirefoxWebElement = attr.ib(init=False, default=None)
 
     # X and Y positions of the game window.
     _pos_x: int = None
     _pos_y: int = None
     _browser_height: int = 830
     _browser_width: int = 570
-    actions = 2 # Jump or Stay
     _game_over_button = cv2.imread("img/game_over.png", cv2.IMREAD_GRAYSCALE)
 
-    def __attrs_post_init__(self):
-        self._browser = webdriver.Firefox()
+    @staticmethod
+    def actions():
+        return 2
+
+    def quit(self):
+        if self._browser:
+            self._browser.close()
+
+    def __enter__(self):
+        options = Options()
+        options.headless = self.headless
+        self._browser = webdriver.Firefox(options=options)
+        self._browser.set_window_size(self._browser_width, self._browser_height)
+        self._browser.get('https://flappybird.io/')
+        self._game_element = self._browser.find_element_by_id(id_="testCanvas")
+        pos = self._browser.get_window_position()
+        self._pos_x = pos["x"]
+        self._pos_y = pos["y"]
+        time.sleep(3)
+        return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self._browser:
             self._browser.close()
 
-    def start_game(self):
-        logger.debug("start_game")
-        self._browser.set_window_size(self._browser_width, self._browser_height)
-        self._browser.get('https://flappybird.io/')
-
-        # Get our positions
-        pos = self._browser.get_window_position()
-        self._pos_x = pos["x"]
-        self._pos_y = pos["y"]
-
-        time.sleep(5)
-
     def _grab_screen(self) -> Image:
+        image = np.fromstring(self._game_element.screenshot_as_png, np.uint8)
+        image = cv2.imdecode(image, cv2.IMREAD_COLOR)
+        image = image[::4, ::4]
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        #import matplotlib.pyplot as plt
+        #plt.imshow(image)
+        #plt.show()
+        return Image(image)
+
+    def _grab_screen_legacy(self) -> Image:
         """
         Grab a screenshot of the game.
         """
@@ -62,31 +83,10 @@ class Game:
         with mss.mss() as sct:
             screen = sct.grab(region)
 
-        #screen = pyscreenshot.grab(
-        #    bbox=(self._pos_x,
-        #          self._pos_y,
-        #          self._pos_x + self._browser_height,
-        #          self._pos_y + self._browser_width)
-        #)
-        # all the good shit is in cv2
-        # Also turn it grayscale as we dont need the color data.
-        #screen = cv2.cvtColor(numpy.array(screen), cv2.COLOR_BGR2GRAY)
         screen = numpy.array(screen)
         screen = screen[::4, ::4]
         screen = cv2.cvtColor(screen, cv2.COLOR_BGR2RGB)
         screen = Image(screen)
-        #screen = self._preprocess_screen(screen)
-
-        # Downscale the shit out of it.
-        # Image processing is painfully slow and so in order to react fast enough we need to cut out anything that not important.
-        # Here we are reducing the ratio by a factor of 3.
-        #width = int(screen.shape[1] / 3)
-        #height = int(screen.shape[0] / 3)
-        #dim = (width, height)
-        #screen = cv2.resize(screen, dim, interpolation=cv2.INTER_AREA)
-        #screen = cv2.cvtColor(screen, cv2.COLOR_BGR2RGB)
-
-        #logger.debug("[_grab_screen] Exec time", runtime=time.time()-start_time)
         return screen
 
     def step(self, action) -> (numpy.array, int, bool):
@@ -117,6 +117,8 @@ class Game:
             return True
 
         done = int(game_over(screen))
+        if done:
+            self._game_over = True
 
         if done:
             reward = -1
@@ -124,6 +126,9 @@ class Game:
             reward = 1
 
         return screen.as_greyscale(), reward, done
+
+    def game_over(self) -> bool:
+        return self._game_over
 
     def reset(self):
         self.input(Keys.SPACE)
@@ -138,5 +143,4 @@ class Game:
         #element = self._browser.find_element_by_tag_name("canvas")
         actions = ActionChains(driver=self._browser)
         actions.send_keys(key).perform()
-
 
