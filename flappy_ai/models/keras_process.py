@@ -21,7 +21,6 @@ class KerasProcess(ProcessBase):
         last_update = time.time()
         AGENT = DQNAgent(Game.actions())
         AGENT.load()
-        AGENT.update_plots()
 
         while True:
             if not child_pipe.poll():
@@ -39,8 +38,6 @@ class KerasProcess(ProcessBase):
                     start_time = time.time()
                     AGENT.fit_batch(AGENT.memory.get_sample_batch(batch_size=batch_size))
                     logger.debug("[KerasProcess] Fit Batch Complete", runtime=time.time()-start_time, batch_size=batch_size)
-                    # Please note that the plt will be frozen until this call.
-                    AGENT.update_plots()
 
                 if AGENT.epsilon > AGENT.epsilon_min and len(AGENT.memory) > AGENT.observe_rate:
                     AGENT.epsilon -= (AGENT.start_epsilon - AGENT.epsilon_min) / AGENT.explore_rate
@@ -54,5 +51,5 @@ class KerasProcess(ProcessBase):
                 # Only print updates and save every 5 minutes
                 last_update = time.time()
                 logger.debug("KERAS PROCESS UPDATE", epsilon=AGENT.epsilon, memory_len=len(AGENT.memory))
-                logger.debug("Stats", loss=np.mean(AGENT.loss_history), acc=np.mean(AGENT.acc_history))
+                #logger.debug("Stats", loss=np.mean(AGENT.loss_history), acc=np.mean(AGENT.acc_history))
                 AGENT.save()

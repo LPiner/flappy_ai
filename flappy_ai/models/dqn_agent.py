@@ -1,9 +1,11 @@
 from flappy_ai.models.game import Game
 import random
 import numpy as np
+from cattr import structure, unstructure
 import time
 from flappy_ai.models.game_history import GameHistory
 from flappy_ai.models.game_data import GameData
+from flappy_ai.models.fit_data import FitData
 from keras.layers import Dense, Lambda, Input
 import json
 from keras.models import Sequential
@@ -49,26 +51,8 @@ class DQNAgent:
         self.observe_rate = 500 # games before we start training
         self.learning_rate = 0.001
         self.model = self._build_model()
-        self.loss_history: List[float] = []
-        self.acc_history: List[float] = []
+        self.fit_history: List[FitData] = []
 
-
-        # Plotting Stuff
-        plt.ion()
-        figure = plt.figure()
-        axes = figure.add_subplot(111)
-        self.loss_history_plot_axes = figure.add_subplot(211)
-        self.acc_history_plot_axes = figure.add_subplot(212)
-
-        self.loss_history_plot, = self.loss_history_plot_axes.plot([], [], label='loss')
-        self.acc_history_plot, = self.acc_history_plot_axes.plot([], [], label='acc')
-        # plt.show()
-        self.loss_history_plot_axes.set_xlabel('Entries')
-        self.loss_history_plot_axes.set_ylabel('Loss Value')
-        self.acc_history_plot_axes.set_xlabel('Entries')
-        self.acc_history_plot_axes.set_ylabel('Acc Value')
-        # plt.title("Simple Plot")
-        plt.legend()
 
     def _build_model(self):
 
@@ -166,22 +150,13 @@ class DQNAgent:
             )
 
         if history:
-            self.loss_history.append(history.history["loss"])
-            self.acc_history.append(history.history["acc"])
-            #if self.epsilon > self.epsilon_min:
-        #    self.epsilon *= self.epsilon_decay
-
-    def update_plots(self):
-        self.loss_history_plot.set_data((range(0, len(self.loss_history))), self.loss_history)
-        self.acc_history_plot.set_data((range(0, len(self.acc_history))), self.acc_history)
-
-        self.loss_history_plot_axes.relim()
-        self.loss_history_plot_axes.autoscale_view(True, True, True)
-        self.acc_history_plot_axes.relim()
-        self.acc_history_plot_axes.autoscale_view(True, True, True)
-        plt.draw()
-        plt.pause(0.1)
-
+            self.fit_history.append(
+                FitData(
+                    epsilon=self.epsilon,
+                    loss=history.history["loss"][0],
+                    accuracy=history.history["acc"][0],
+                )
+            )
 
     def load(self):
         try:
@@ -192,9 +167,9 @@ class DQNAgent:
         try:
             with open("save/data.json", "r") as file:
                 data = json.loads(file.read())
-                self.epsilon = data.get("epsilon", self.epsilon)
-                self.loss_history = data.get("loss_history", [])
-                self.acc_history = data.get("acc_history", [])
+                self.fit_history: List[FitData] = structure(data.get("fit_history", []))
+                if self.fit_history:
+                    self.epsilon = self.fit_history[-1].epsilon
         except FileNotFoundError as e:
             logger.warn("Unable to load saved memory.")
 
@@ -204,9 +179,7 @@ class DQNAgent:
             file.write(
                 json.dumps(
                     {
-                        "epsilon": self.epsilon,
-                        "loss_history": self.loss_history,
-                        "acc_history": self.acc_history
+                        "fit_history": unstructure(self.fit_history),
                     },
                 )
             )
