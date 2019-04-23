@@ -137,11 +137,12 @@ class DQNAgent:
             Q_values = rewards + self.gamma * np.max(next_Q_values, axis=1)
             # Fit the keras model. Note how we are passing the actions as the mask and multiplying
             # the targets by the actions.
-            tensorboard = TensorBoard(log_dir=f"logs/{time.time()}")
+            #tensorboard = TensorBoard(log_dir=f"logs/")
             history = self.model.fit(
                 x=start_states,
                 y=actions * Q_values[:, None],
-                epochs=1, batch_size=len(start_states), verbose=0, callbacks=[tensorboard]
+                #epochs=1, batch_size=len(start_states), verbose=0, callbacks=[tensorboard]
+                epochs=1, batch_size=len(start_states), verbose=0
             )
             self.loss_history.append(history.history["loss"])
             self.acc_history.append(history.history["acc"])

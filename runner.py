@@ -24,6 +24,7 @@ if __name__ == "__main__":
     time.sleep(5)
     COMPLETED_ITERATIONS = 0
     last_update = time.time()
+    TRAINING_REQUESTS: List[TrainingRequest] = []
 
     while True:
 
@@ -42,7 +43,7 @@ if __name__ == "__main__":
                     # The end result of the session
                     # Currently I consider set of GameData to be a batch size of one.
                     # This may be over training, idk
-                    KERAS_PROCESS.parent_pipe.send(request)
+                    TRAINING_REQUESTS.append(request)
                     COMPLETED_ITERATIONS += 1
 
         # Prune off any completed clients
@@ -53,8 +54,14 @@ if __name__ == "__main__":
             # Only print updates and save every 5 minutes
             logger.debug("UPDATE", completed_interations=COMPLETED_ITERATIONS)
 
+        # Do the batch training after all the clients have completed
+        # Maybe I need to abstract the training out to it's own process?
+        if not CLIENTS:
+            while TRAINING_REQUESTS:
+                KERAS_PROCESS.parent_pipe.send(TRAINING_REQUESTS.pop())
+
         # If we are still below the targets interations, refill the clients and continue
-        if COMPLETED_ITERATIONS < TARGET_ITERATIONS:
+        if COMPLETED_ITERATIONS < TARGET_ITERATIONS and not CLIENTS:
             while len(CLIENTS) < MAX_CLIENTS:
                 c = GameProcess()
                 CLIENTS.append(c)
