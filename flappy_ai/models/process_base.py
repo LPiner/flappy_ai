@@ -22,11 +22,11 @@ class ProcessBase:
         atexit.register(self.cleanup)
 
     @staticmethod
-    def _process_execute(child_pipe: PipeConnection):
+    def _process_execute(child_pipe: PipeConnection, *args, **kwargs):
         raise NotImplementedError
 
-    def start(self):
-        self._child_process: Process = Process(target=self._process_execute, args=(self.child_pipe, ))
+    def start(self, *args, **kwargs):
+        self._child_process: Process = Process(target=self._process_execute, args=(self.child_pipe, ), kwargs=kwargs)
         self._child_process.start()
 
     def has_started(self) -> bool:

@@ -15,10 +15,10 @@ import atexit
 class GameProcess(ProcessBase):
 
     @staticmethod
-    def _process_execute(child_pipe: PipeConnection):
+    def _process_execute(child_pipe: PipeConnection, *args, force_headless=True, **kwargs):
         game_data = GameData()
 
-        with Game(headless=False) as env:
+        with Game(headless=force_headless) as env:
 
             if child_pipe.poll() and child_pipe.recv() is None:
                 # Shutdown request

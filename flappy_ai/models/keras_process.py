@@ -14,7 +14,7 @@ logger = get_logger(__name__)
 class KerasProcess(ProcessBase):
 
     @staticmethod
-    def _process_execute(child_pipe: PipeConnection):
+    def _process_execute(child_pipe: PipeConnection, *args, **kwargs):
         from flappy_ai.models.dqn_agent import DQNAgent
 
         last_update = time.time()
@@ -31,6 +31,7 @@ class KerasProcess(ProcessBase):
                 result = AGENT.predict(request.data)
                 child_pipe.send(PredictionResult(result=result))
             elif isinstance(request, TrainingRequest):
+                AGENT.memory.append(request.game_data)
                 if AGENT.epsilon > AGENT.epsilon_min and len(AGENT.memory) > AGENT.observe_rate:
                     AGENT.epsilon -= (AGENT.start_epsilon - AGENT.epsilon_min) / AGENT.explore_rate
             elif request is None:
