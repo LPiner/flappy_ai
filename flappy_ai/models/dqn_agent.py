@@ -12,9 +12,7 @@ from keras.optimizers import RMSprop
 from typing import List
 import tensorflow as tf
 from structlog import get_logger
-from flappy_ai.models.memory_item import MemoryItem
-import matplotlib.pyplot as plt
-from cattr import structure, unstructure
+from keras.callbacks import TensorBoard
 
 logger = get_logger(__name__)
 config = tf.ConfigProto()
@@ -74,6 +72,7 @@ class DQNAgent:
         model.add(Dense(self.action_size))
         # Info on opts
         # http://ruder.io/optimizing-gradient-descent/
+
         opt = RMSprop(lr=self.learning_rate)
         model.compile(loss="mean_squared_error", optimizer=opt, metrics=['accuracy'])
 
@@ -138,10 +137,11 @@ class DQNAgent:
             Q_values = rewards + self.gamma * np.max(next_Q_values, axis=1)
             # Fit the keras model. Note how we are passing the actions as the mask and multiplying
             # the targets by the actions.
+            tensorboard = TensorBoard(log_dir=f"logs/{time.time()}")
             history = self.model.fit(
                 x=start_states,
                 y=actions * Q_values[:, None],
-                epochs=1, batch_size=len(start_states), verbose=0,
+                epochs=1, batch_size=len(start_states), verbose=0, callbacks=[tensorboard]
             )
             self.loss_history.append(history.history["loss"])
             self.acc_history.append(history.history["acc"])

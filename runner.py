@@ -20,6 +20,8 @@ TARGET_ITERATIONS = int(EPOCHS / BATCH_SIZE)
 if __name__ == "__main__":
     KERAS_PROCESS = KerasProcess()
     KERAS_PROCESS.start(batch_size=BATCH_SIZE)
+    # Give the keras process time to spin up, load models, etc.
+    time.sleep(5)
     COMPLETED_ITERATIONS = 0
     last_update = time.time()
 
@@ -47,6 +49,7 @@ if __name__ == "__main__":
         CLIENTS = [x for x in CLIENTS if x.is_alive()]
 
         if (time.time() - last_update) / 60 > 5:
+            last_update = time.time()
             # Only print updates and save every 5 minutes
             logger.debug("UPDATE", completed_interations=COMPLETED_ITERATIONS)
 

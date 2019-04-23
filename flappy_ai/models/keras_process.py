@@ -48,6 +48,7 @@ class KerasProcess(ProcessBase):
 
             if (time.time() - last_update) / 60 > 5:
                 # Only print updates and save every 5 minutes
+                last_update = time.time()
                 logger.debug("KERAS PROCESS UPDATE", epsilon=AGENT.epsilon, memory_len=len(AGENT.memory))
                 logger.debug("Stats", loss=np.mean(AGENT.loss_history), acc=np.mean(AGENT.acc_history))
                 AGENT.save()

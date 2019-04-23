@@ -29,6 +29,7 @@ class GameProcess(ProcessBase):
                 return
 
             while not env.game_over():
+                start_time = time.time()
                 if not game_data.score:
                     state, reward, done = env.step(0)
 
@@ -72,6 +73,10 @@ class GameProcess(ProcessBase):
                         action=taken_action,
                     )
                 )
+
+                loop_time = time.time() - start_time
+                if loop_time > .25:
+                    logger.warn("[GameProcess] Took to long to complete loop!", loop_time=loop_time)
 
         # Send the session data up to the main process.
         # Do not exit until the data has been read.
