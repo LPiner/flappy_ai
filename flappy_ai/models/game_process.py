@@ -44,7 +44,7 @@ class GameProcess(ProcessBase):
                 start_wait_time = time.time()
                 action: PredictionResult = child_pipe.recv()
                 wait_time = time.time() - start_wait_time
-                if wait_time > .1:
+                if wait_time > .02:
                     logger.warn("[GameProcess] Took too long to receive action, tossing game!", wait_time=wait_time)
                     # If we take too long for an action then the states will not line up
                     # So we just toss the game.

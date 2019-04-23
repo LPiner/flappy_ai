@@ -56,6 +56,11 @@ class Game:
             self._browser.close()
 
     def _grab_screen(self) -> Image:
+        """
+        New method, this allows us to grab screen data via a headless browser.
+        It is slower than _grab_screen_legacy ~.05 vs ~0.1 but its still within margins.
+        Using this we can run multiple sessions and train much faster.
+        """
         image = np.fromstring(self._game_element.screenshot_as_png, np.uint8)
         image = cv2.imdecode(image, cv2.IMREAD_COLOR)
         image = image[::4, ::4]
