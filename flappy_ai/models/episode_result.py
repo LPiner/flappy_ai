@@ -4,7 +4,7 @@ from flappy_ai.models.game_data import GameData
 
 
 @attr.s(auto_attribs=True)
-class TrainingRequest:
+class EpisodeResult:
     """
     The data for our game session.
     """

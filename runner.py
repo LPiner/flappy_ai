@@ -2,7 +2,8 @@ from flappy_ai.models.game_process import GameProcess
 from typing import List
 import time
 import multiprocessing
-from flappy_ai.models import PredictionRequest, TrainingRequest
+import json
+from flappy_ai.models import PredictionRequest, EpisodeResult
 from flappy_ai.models.keras_process import KerasProcess
 from structlog import get_logger
 
@@ -21,9 +22,10 @@ if __name__ == "__main__":
     KERAS_PROCESS.start(batch_size=BATCH_SIZE)
     # Give the keras process time to spin up, load models, etc.
     time.sleep(5)
-    COMPLETED_EPISODES= 0
+    CURRENT_EPISODES = 0
+    COMPLETED_EPISODES = 0
     last_update = time.time()
-    TRAINING_REQUESTS: List[TrainingRequest] = []
+    EPISODE_RESULTS: List[EpisodeResult] = []
 
     while True:
         if not KERAS_PROCESS.is_alive():
@@ -41,11 +43,11 @@ if __name__ == "__main__":
                 KERAS_PROCESS.parent_pipe.send(request)
                 if isinstance(request, PredictionRequest):
                     client.parent_pipe.send(KERAS_PROCESS.parent_pipe.recv())
-                elif isinstance(request, TrainingRequest):
+                elif isinstance(request, EpisodeResult):
                     # The end result of the session
                     # Currently I consider set of GameData to be a batch size of one.
                     # This may be over training, idk
-                    TRAINING_REQUESTS.append(request)
+                    EPISODE_RESULTS.append(request)
                     COMPLETED_EPISODES += 1
 
         # Prune off any completed clients
@@ -59,8 +61,19 @@ if __name__ == "__main__":
         # Do the batch training after all the clients have completed
         # Maybe I need to abstract the training out to it's own process?
         if not CLIENTS:
-            while TRAINING_REQUESTS:
-                KERAS_PROCESS.parent_pipe.send(TRAINING_REQUESTS.pop())
+            episodes_results = []
+            try:
+                with open("save/episode_results.json", "r") as f:
+                    episodes_results = json.loads(f.read()).get("episode_results", [])
+            except (json.JSONDecodeError, FileNotFoundError):
+                pass
+
+            with open("save/episode_results.json", "w+") as f:
+                episodes_results += [{"episode": x.game_data.episode_number, "score": x.game_data.score} for x in EPISODE_RESULTS]
+                f.write(json.dumps({"episode_results": episodes_results}))
+
+            while EPISODE_RESULTS:
+                KERAS_PROCESS.parent_pipe.send(EPISODE_RESULTS.pop())
 
         # If we are still below the targets interations, refill the clients and continue
         if COMPLETED_EPISODES >= EPISODES:
@@ -70,9 +83,11 @@ if __name__ == "__main__":
                 break
         elif COMPLETED_EPISODES < EPISODES and not CLIENTS:
             while len(CLIENTS) < MAX_CLIENTS:
+                # Wrong place for this.
+                CURRENT_EPISODES += 1
                 c = GameProcess()
                 CLIENTS.append(c)
-                c.start()
+                c.start(episode_number=CURRENT_EPISODES)
 
 
 

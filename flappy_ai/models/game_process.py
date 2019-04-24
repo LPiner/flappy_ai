@@ -3,7 +3,7 @@ from multiprocessing.connection import PipeConnection
 from typing import List
 from flappy_ai.models.game import Game
 from flappy_ai.models.game_data import GameData
-from flappy_ai.models import TrainingRequest, PredictionRequest, MemoryItem, PredictionResult
+from flappy_ai.models import EpisodeResult, PredictionRequest, MemoryItem, PredictionResult
 from flappy_ai.models.process_base import ProcessBase
 import numpy as np
 import attr
@@ -20,8 +20,8 @@ logger = get_logger(__name__)
 class GameProcess(ProcessBase):
 
     @staticmethod
-    def _process_execute(child_pipe: PipeConnection, *args, force_headless=True, **kwargs):
-        game_data = GameData()
+    def _process_execute(child_pipe: PipeConnection, *args, force_headless=True, episode_number=None, **kwargs):
+        game_data = GameData(episode_number=episode_number)
 
         with Game(headless=force_headless) as env:
 
@@ -104,7 +104,7 @@ class GameProcess(ProcessBase):
         # Send the session data up to the main process.
         # Do not exit until the data has been read.
         # Exiting before causes the data to be lost.
-        child_pipe.send(TrainingRequest(game_data=game_data))
+        child_pipe.send(EpisodeResult(game_data=game_data))
         logger.debug("[GameProcess] Completed.", average_loop_time=np.mean(loop_times))
         while child_pipe.poll():
             time.sleep(1)

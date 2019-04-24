@@ -7,6 +7,7 @@ from collections import deque
 class GameData:
 
     # How many frames of history should we merge into an added frame.
+    episode_number: int
     movement_frames: int = attr.ib(default=4)
     score: int = attr.ib(default=0)
     _memory: deque = attr.ib(default=attr.Factory(list), init=False)

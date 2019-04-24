@@ -2,7 +2,7 @@ from multiprocessing import Pipe, Process
 from multiprocessing.connection import PipeConnection
 from flappy_ai.models.game import Game
 from flappy_ai.models.game_data import GameData
-from flappy_ai.models import TrainingRequest, PredictionRequest, MemoryItem, PredictionResult
+from flappy_ai.models import EpisodeResult, PredictionRequest, MemoryItem, PredictionResult
 import numpy as np
 import attr
 import time

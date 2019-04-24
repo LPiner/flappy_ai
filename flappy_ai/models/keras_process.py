@@ -1,6 +1,6 @@
 from multiprocessing.connection import PipeConnection
 from flappy_ai.models.game import Game
-from flappy_ai.models import TrainingRequest, PredictionRequest, PredictionResult
+from flappy_ai.models import EpisodeResult, PredictionRequest, PredictionResult
 from flappy_ai.models.process_base import ProcessBase
 import numpy as np
 import attr
@@ -31,7 +31,7 @@ class KerasProcess(ProcessBase):
             if isinstance(request, PredictionRequest):
                 result = AGENT.predict(request.data)
                 child_pipe.send(PredictionResult(result=result))
-            elif isinstance(request, TrainingRequest):
+            elif isinstance(request, EpisodeResult):
                 for item in request.game_data:
                     AGENT.memory.append(item)
                     if len(AGENT.memory) > AGENT.observe_rate:
