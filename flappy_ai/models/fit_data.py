@@ -1,5 +1,6 @@
-import attr
 import time
+
+import attr
 
 
 @attr.s(auto_attribs=True)
@@ -8,4 +9,3 @@ class FitData:
     loss: float
     accuracy: float
     timestamp: float = attr.ib(default=attr.Factory(time.time))
-

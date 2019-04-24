@@ -1,18 +1,21 @@
+import atexit
+import time
 from multiprocessing import Pipe, Process
 from multiprocessing.connection import PipeConnection
+
+import attr
+import numpy as np
+
+from flappy_ai.models import (EpisodeResult, MemoryItem, PredictionRequest,
+                              PredictionResult)
 from flappy_ai.models.game import Game
 from flappy_ai.models.game_data import GameData
-from flappy_ai.models import EpisodeResult, PredictionRequest, MemoryItem, PredictionResult
-import numpy as np
-import attr
-import time
-import atexit
 
 
 @attr.s(auto_attribs=True)
 class ProcessBase:
-    parent_pipe: PipeConnection = None # data into the process
-    child_pipe: PipeConnection = None # data out from the process
+    parent_pipe: PipeConnection = None  # data into the process
+    child_pipe: PipeConnection = None  # data out from the process
     _child_process: int = None
 
     def __attrs_post_init__(self):
@@ -31,7 +34,7 @@ class ProcessBase:
         Every time a new process is opened the module is imported again. This allows you to
         make changes to the clients while the main process is still running.
         """
-        self._child_process: Process = Process(target=self._process_execute, args=(self.child_pipe, ), kwargs=kwargs)
+        self._child_process: Process = Process(target=self._process_execute, args=(self.child_pipe,), kwargs=kwargs)
         self._child_process.start()
 
     def has_started(self) -> bool:

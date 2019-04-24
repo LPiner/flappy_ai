@@ -1,11 +1,13 @@
-from flappy_ai.models.game_process import GameProcess
-from typing import List
-import time
-import multiprocessing
 import json
-from flappy_ai.models import PredictionRequest, EpisodeResult
-from flappy_ai.models.keras_process import KerasProcess
+import multiprocessing
+import time
+from typing import List
+
 from structlog import get_logger
+
+from flappy_ai.models import EpisodeResult, PredictionRequest
+from flappy_ai.models.game_process import GameProcess
+from flappy_ai.models.keras_process import KerasProcess
 
 logger = get_logger(__name__)
 
@@ -15,7 +17,7 @@ KERAS_PROCESS = None
 
 # https://towardsdatascience.com/epoch-vs-iterations-vs-batch-size-4dfb9c7ce9c9
 BATCH_SIZE = 32
-EPISODES = 10000 # TODO, figure out a optimal number
+EPISODES = 10000  # TODO, figure out a optimal number
 
 if __name__ == "__main__":
     KERAS_PROCESS = KerasProcess()
@@ -69,7 +71,9 @@ if __name__ == "__main__":
                 pass
 
             with open("save/episode_results.json", "w+") as f:
-                episodes_results += [{"episode": x.game_data.episode_number, "score": x.game_data.score} for x in EPISODE_RESULTS]
+                episodes_results += [
+                    {"episode": x.game_data.episode_number, "score": x.game_data.score} for x in EPISODE_RESULTS
+                ]
                 f.write(json.dumps({"episode_results": episodes_results}))
 
             while EPISODE_RESULTS:
@@ -88,12 +92,3 @@ if __name__ == "__main__":
                 c = GameProcess()
                 CLIENTS.append(c)
                 c.start(episode_number=CURRENT_EPISODES)
-
-
-
-
-
-
-
-
-

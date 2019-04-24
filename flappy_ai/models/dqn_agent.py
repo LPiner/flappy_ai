@@ -1,22 +1,24 @@
-from flappy_ai.models.game import Game
+import json
 import random
-import numpy as np
-from cattr import structure, unstructure
 import time
+from typing import List
+
+import matplotlib.pyplot as plt
+import numpy as np
+import tensorflow as tf
+from cattr import structure, unstructure
+from keras.callbacks import TensorBoard
+from keras.layers import (BatchNormalization, Conv2D, Dense, Flatten, Input,
+                          Lambda)
+from keras.models import Sequential
+from keras.optimizers import RMSprop
+from structlog import get_logger
+
+from flappy_ai.models.fit_data import FitData
+from flappy_ai.models.game import Game
+from flappy_ai.models.game_data import GameData
 from flappy_ai.models.game_history import GameHistory
 from flappy_ai.models.memory_item import MemoryItem
-from flappy_ai.models.game_data import GameData
-from flappy_ai.models.fit_data import FitData
-from keras.layers import Dense, Lambda, Input
-import json
-from keras.models import Sequential
-from keras.layers import Conv2D, Flatten, Dense, BatchNormalization
-from keras.optimizers import RMSprop
-import matplotlib.pyplot as plt
-from typing import List
-import tensorflow as tf
-from structlog import get_logger
-from keras.callbacks import TensorBoard
 
 logger = get_logger(__name__)
 config = tf.ConfigProto()
@@ -25,15 +27,14 @@ session = tf.Session(config=config)
 
 EPISODES = 100000
 
+
 class DQNAgent:
     def __init__(self, action_size):
         self.data_shape = (160, 120, 4)
         self.action_size = action_size
-        self.memory = GameHistory(
-            size=100000,
-        )
-        self.gamma = 0.99    # discount rate
-        #self.epsilon = 1.0  # exploration rate
+        self.memory = GameHistory(size=100000)
+        self.gamma = 0.99  # discount rate
+        # self.epsilon = 1.0  # exploration rate
         """
         E is best ot start at 1 but we dont want the bird to flap too much.
         # see https://github.com/yenchenlin/DeepLearningFlappyBird
@@ -48,12 +49,11 @@ class DQNAgent:
         self.start_epsilon = 1
         self.epsilon = self.start_epsilon
         self.epsilon_min = 0.1
-        self.explore_rate = 10000 # Games before e becomes e min.
-        self.observe_rate = 500 # games before we start training
+        self.explore_rate = 10000  # Games before e becomes e min.
+        self.observe_rate = 500  # games before we start training
         self.learning_rate = 0.001
         self.model = self._build_model()
         self.fit_history: List[FitData] = []
-
 
     def _build_model(self):
 
@@ -61,16 +61,16 @@ class DQNAgent:
         # https://arxiv.org/pdf/1312.5602v1.pdf
 
         # With the functional API we need to define the inputs.
-        frames_input = Input(self.data_shape, name='frames')
+        frames_input = Input(self.data_shape, name="frames")
 
         # Assuming that the input frames are still encoded from 0 to 255. Transforming to [0, 1].
         normalized = Lambda(lambda x: x / 255.0)(frames_input)
 
         model = Sequential()
         model.add(BatchNormalization(input_shape=self.data_shape))
-        model.add(Conv2D(16, 8, strides=(4, 4), padding='valid', activation='relu'))
-        model.add(Conv2D(32, 4, strides=(2, 2), padding='valid', activation='relu'))
-        #model.add(Conv2D(64, 3, strides=(1, 1), padding='valid', activation='relu'))
+        model.add(Conv2D(16, 8, strides=(4, 4), padding="valid", activation="relu"))
+        model.add(Conv2D(32, 4, strides=(2, 2), padding="valid", activation="relu"))
+        # model.add(Conv2D(64, 3, strides=(1, 1), padding='valid', activation='relu'))
         model.add(Flatten())
         model.add(Dense(256, activation="relu"))
         model.add(Dense(self.action_size))
@@ -78,7 +78,7 @@ class DQNAgent:
         # http://ruder.io/optimizing-gradient-descent/
 
         opt = RMSprop(lr=self.learning_rate)
-        model.compile(loss="mean_squared_error", optimizer=opt, metrics=['accuracy'])
+        model.compile(loss="mean_squared_error", optimizer=opt, metrics=["accuracy"])
 
         return model
 
@@ -102,11 +102,11 @@ class DQNAgent:
         else:
             action = np.argmax(act_values[0])  # returns action
 
-        #logger.debug("[act]", predicted_actions=act_values.tolist(), using_random_action=random_action, chosen_action=action)
+        # logger.debug("[act]", predicted_actions=act_values.tolist(), using_random_action=random_action, chosen_action=action)
 
         return action
 
-    #def fit_batch(self, start_states, actions, rewards, next_states, is_terminal):
+    # def fit_batch(self, start_states, actions, rewards, next_states, is_terminal):
     def fit_batch(self, batch_items: List[MemoryItem]):
         """Do one deep Q learning iteration.
 
@@ -128,7 +128,7 @@ class DQNAgent:
         rewards = np.array([x.reward for x in batch_items])
         next_states = np.array([x.next_state for x in batch_items])
         is_terminal = np.array([x.is_terminal for x in batch_items])
-        #start_states = np.array([x.merged_state for x in game_data][:-1])
+        # start_states = np.array([x.merged_state for x in game_data][:-1])
 
         # First, predict the Q values of the next states.
         next_Q_values = self.model.predict(next_states)
@@ -136,22 +136,20 @@ class DQNAgent:
         next_Q_values[is_terminal] = 0
         # The Q values of each start state is the reward + gamma * the max next state Q value
         Q_values = rewards + self.gamma * np.max(next_Q_values, axis=1)
-    # Fit the keras model. Note how we are passing the actions as the mask and multiplying
+        # Fit the keras model. Note how we are passing the actions as the mask and multiplying
         # the targets by the actions.
-        #tensorboard = TensorBoard(log_dir=f"logs/")
+        # tensorboard = TensorBoard(log_dir=f"logs/")
         history = self.model.fit(
             x=start_states,
             y=actions * Q_values[:, None],
-            #epochs=1, batch_size=len(start_states), verbose=0, callbacks=[tensorboard]
-            epochs=1, batch_size=len(start_states), verbose=0
+            # epochs=1, batch_size=len(start_states), verbose=0, callbacks=[tensorboard]
+            epochs=1,
+            batch_size=len(start_states),
+            verbose=0,
         )
 
         self.fit_history.append(
-            FitData(
-                epsilon=self.epsilon,
-                loss=history.history["loss"][0],
-                accuracy=history.history["acc"][0],
-            )
+            FitData(epsilon=self.epsilon, loss=history.history["loss"][0], accuracy=history.history["acc"][0])
         )
 
     def load(self):
@@ -175,10 +173,4 @@ class DQNAgent:
     def save(self):
         self.model.save_weights("save/flappy.h5")
         with open("save/data.json", "w+") as file:
-            file.write(
-                json.dumps(
-                    {
-                        "fit_history": unstructure(self.fit_history),
-                    },
-                )
-            )
+            file.write(json.dumps({"fit_history": unstructure(self.fit_history)}))

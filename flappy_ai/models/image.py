@@ -1,6 +1,6 @@
 import attr
-import numpy as np
 import cv2
+import numpy as np
 
 
 @attr.s(auto_attribs=True)
@@ -18,4 +18,3 @@ class Image:
         if self._greyscale is None:
             self._greyscale = np.mean(self.image, axis=2).astype(np.uint8)
         return self._greyscale
-

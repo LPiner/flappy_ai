@@ -1,24 +1,23 @@
+import time
 from multiprocessing import Pipe, Process
 from multiprocessing.connection import PipeConnection
 from typing import List
-from flappy_ai.models.game import Game
-from flappy_ai.models.game_data import GameData
-from flappy_ai.models import EpisodeResult, PredictionRequest, MemoryItem, PredictionResult
-from flappy_ai.models.process_base import ProcessBase
-import numpy as np
+
 import attr
-import time
+import numpy as np
 from structlog import get_logger
 
+from flappy_ai.models import (EpisodeResult, MemoryItem, PredictionRequest,
+                              PredictionResult)
+from flappy_ai.models.game import Game
+from flappy_ai.models.game_data import GameData
+from flappy_ai.models.process_base import ProcessBase
 
 logger = get_logger(__name__)
 
 
-
-
 @attr.s(auto_attribs=True)
 class GameProcess(ProcessBase):
-
     @staticmethod
     def _process_execute(child_pipe: PipeConnection, *args, force_headless=True, episode_number=None, **kwargs):
         game_data = GameData(episode_number=episode_number)
@@ -51,14 +50,11 @@ class GameProcess(ProcessBase):
                 # Maybe i need 4 seperate inputs to the network instead.
                 state = np.stack(np.array(screen_history[-4:]), axis=2)
 
-
-                child_pipe.send(
-                    PredictionRequest(data=state)
-                )
+                child_pipe.send(PredictionRequest(data=state))
                 start_wait_time = time.time()
                 action: PredictionResult = child_pipe.recv()
                 wait_time = time.time() - start_wait_time
-                if wait_time > .02:
+                if wait_time > 0.02:
                     logger.warn("[GameProcess] Took too long to receive action, tossing game!", wait_time=wait_time)
                     # If we take too long for an action then the states will not line up
                     # So we just toss the game.
@@ -67,7 +63,7 @@ class GameProcess(ProcessBase):
                 screen_history.append(next_state)
 
                 next_state = np.stack(np.array(screen_history[-4:]), axis=2)
-                #cv2.imwrite(f"tmp/{game_data.total_frames()}.png", next_state)
+                # cv2.imwrite(f"tmp/{game_data.total_frames()}.png", next_state)
 
                 # The reward goes back one memory item since that is the action that created it.
                 # same wth the terminal state.
@@ -87,15 +83,10 @@ class GameProcess(ProcessBase):
                 else:
                     taken_action = [0, 1]
 
-                game_data.append(
-                    MemoryItem(
-                        state=next_state,
-                        action=taken_action,
-                    )
-                )
+                game_data.append(MemoryItem(state=next_state, action=taken_action))
 
                 loop_time = time.time() - start_time
-                #if loop_time > .10:
+                # if loop_time > .10:
                 #    logger.warn("[GameProcess] Took to long to complete loop, tossing game!", loop_time=loop_time)
                 #    return
                 # Handy to know how long it takes to complete a game.
@@ -108,4 +99,3 @@ class GameProcess(ProcessBase):
         logger.debug("[GameProcess] Completed.", average_loop_time=np.mean(loop_times))
         while child_pipe.poll():
             time.sleep(1)
-

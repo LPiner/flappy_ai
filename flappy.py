@@ -1,20 +1,22 @@
-from flappy_ai.models.game import Game
-import random
-import numpy as np
-import time
-from flappy_ai.models.game_history import GameHistory
-from flappy_ai.models.game_data import GameData
-from keras.layers import Dense, Lambda, Input
 import json
-from keras.models import Sequential
-from keras.layers import Conv2D, Flatten, Dense, BatchNormalization
-from keras.optimizers import RMSprop
+import random
+import time
 from typing import List
-import tensorflow as tf
-from structlog import get_logger
-from flappy_ai.models.memory_item import MemoryItem
+
 import matplotlib.pyplot as plt
+import numpy as np
+import tensorflow as tf
 from cattr import structure, unstructure
+from keras.layers import (BatchNormalization, Conv2D, Dense, Flatten, Input,
+                          Lambda)
+from keras.models import Sequential
+from keras.optimizers import RMSprop
+from structlog import get_logger
+
+from flappy_ai.models.game import Game
+from flappy_ai.models.game_data import GameData
+from flappy_ai.models.game_history import GameHistory
+from flappy_ai.models.memory_item import MemoryItem
 
 logger = get_logger(__name__)
 config = tf.ConfigProto()
@@ -23,16 +25,15 @@ session = tf.Session(config=config)
 
 EPISODES = 100000
 
+
 class DQNAgent:
     def __init__(self, state_size, action_size):
         self.data_shape = (159, 81, 1)
         self.state_size = state_size
         self.action_size = action_size
-        self.memory = GameHistory(
-            size=100000,
-        )
-        self.gamma = 0.99    # discount rate
-        #self.epsilon = 1.0  # exploration rate
+        self.memory = GameHistory(size=100000)
+        self.gamma = 0.99  # discount rate
+        # self.epsilon = 1.0  # exploration rate
         """
         E is best ot start at 1 but we dont want the bird to flap too much.
         # see https://github.com/yenchenlin/DeepLearningFlappyBird
@@ -48,8 +49,8 @@ class DQNAgent:
         self.epsilon = self.start_epsilon
         self.epsilon_min = 0.1
         self.explore_rate = 200000
-        #self.observe_rate = 100000 # frames before we start training.
-        self.observe_rate = 10000 # frames before we start training.
+        # self.observe_rate = 100000 # frames before we start training.
+        self.observe_rate = 10000  # frames before we start training.
         self.learning_rate = 0.001
         self.model = self._build_model()
         self.loss_history: List[float] = []
@@ -61,23 +62,23 @@ class DQNAgent:
         # https://arxiv.org/pdf/1312.5602v1.pdf
 
         # With the functional API we need to define the inputs.
-        frames_input = Input(self.data_shape, name='frames')
+        frames_input = Input(self.data_shape, name="frames")
 
         # Assuming that the input frames are still encoded from 0 to 255. Transforming to [0, 1].
         normalized = Lambda(lambda x: x / 255.0)(frames_input)
 
         model = Sequential()
         model.add(BatchNormalization(input_shape=self.data_shape))
-        model.add(Conv2D(16, 8, strides=(4, 4), padding='valid', activation='relu'))
-        model.add(Conv2D(32, 4, strides=(2, 2), padding='valid', activation='relu'))
-        #model.add(Conv2D(64, 3, strides=(1, 1), padding='valid', activation='relu'))
+        model.add(Conv2D(16, 8, strides=(4, 4), padding="valid", activation="relu"))
+        model.add(Conv2D(32, 4, strides=(2, 2), padding="valid", activation="relu"))
+        # model.add(Conv2D(64, 3, strides=(1, 1), padding='valid', activation='relu'))
         model.add(Flatten())
         model.add(Dense(256, activation="relu"))
         model.add(Dense(self.action_size))
         # Info on opts
         # http://ruder.io/optimizing-gradient-descent/
         opt = RMSprop(lr=self.learning_rate)
-        model.compile(loss="mean_squared_error", optimizer=opt, metrics=['accuracy'])
+        model.compile(loss="mean_squared_error", optimizer=opt, metrics=["accuracy"])
 
         return model
 
@@ -101,11 +102,13 @@ class DQNAgent:
         else:
             action = np.argmax(act_values[0])  # returns action
 
-        logger.debug("[act]", predicted_actions=act_values.tolist(), using_random_action=random_action, chosen_action=action)
+        logger.debug(
+            "[act]", predicted_actions=act_values.tolist(), using_random_action=random_action, chosen_action=action
+        )
 
         return action
 
-    #def fit_batch(self, start_states, actions, rewards, next_states, is_terminal):
+    # def fit_batch(self, start_states, actions, rewards, next_states, is_terminal):
     def fit_batch(self, batch_games: List[GameData]):
         """Do one deep Q learning iteration.
 
@@ -124,11 +127,11 @@ class DQNAgent:
         """
         for game_data in batch_games:
             # we're offset by one here as the finished state for one is the start state for the next, I think.
-            #start_states = np.array([x.merged_state for x in game_data][:-1])
+            # start_states = np.array([x.merged_state for x in game_data][:-1])
             start_states = np.array([x.state for x in game_data][:-1])
             actions = np.array([x.action for x in game_data][:-1])
             rewards = np.array([x.reward for x in game_data][:-1])
-            #next_states = np.array([x.merged_state for x in game_data][1:])
+            # next_states = np.array([x.merged_state for x in game_data][1:])
             next_states = np.array([x.state for x in game_data][1:])
             is_terminal = np.array([x.is_terminal for x in game_data][:-1])
 
@@ -141,13 +144,11 @@ class DQNAgent:
             # Fit the keras model. Note how we are passing the actions as the mask and multiplying
             # the targets by the actions.
             history = self.model.fit(
-                x=start_states,
-                y=actions * Q_values[:, None],
-                epochs=1, batch_size=len(start_states), verbose=0,
+                x=start_states, y=actions * Q_values[:, None], epochs=1, batch_size=len(start_states), verbose=0
             )
             self.loss_history.append(history.history["loss"])
             self.acc_history.append(history.history["acc"])
-            #if self.epsilon > self.epsilon_min:
+            # if self.epsilon > self.epsilon_min:
         #    self.epsilon *= self.epsilon_decay
 
     def load(self):
@@ -170,11 +171,8 @@ class DQNAgent:
         with open("save/data.json", "w+") as file:
             file.write(
                 json.dumps(
-                    {
-                        "epsilon": self.epsilon,
-                        "loss_history": self.loss_history,
-                        "acc_history": self.acc_history
-                    }, indent=4,
+                    {"epsilon": self.epsilon, "loss_history": self.loss_history, "acc_history": self.acc_history},
+                    indent=4,
                 )
             )
 
@@ -182,23 +180,23 @@ class DQNAgent:
         # list all data in history
         # summarize history for accuracy
         plt.plot(self.acc_history)
-        plt.title('Accuracy')
-        plt.ylabel('accuracy')
+        plt.title("Accuracy")
+        plt.ylabel("accuracy")
         plt.show()
         # summarize history for loss
-        plt.plot(history.history['loss'])
-        plt.title('model loss')
+        plt.plot(history.history["loss"])
+        plt.title("model loss")
         plt.plot(self.loss_history)
-        plt.ylabel('loss')
+        plt.ylabel("loss")
         plt.show()
 
 
 if __name__ == "__main__":
-    #env = gym.make('CartPole-v1')
+    # env = gym.make('CartPole-v1')
     env = Game()
     env.start_game()
 
-    state_size = None#env.observation_space.shape[0]
+    state_size = None  # env.observation_space.shape[0]
     action_size = env.actions
     agent = DQNAgent(state_size, action_size)
     agent.load()
@@ -215,17 +213,13 @@ if __name__ == "__main__":
         frames = 0
         start_time = time.time()
         while not done:
-            if time.time() - start_time < .2:
+            if time.time() - start_time < 0.2:
                 continue
             else:
                 start_time = time.time()
                 state, reward, done = env.step(0)
 
-                item = MemoryItem(
-                    state=state,
-                    action=[1, 0],
-                    next_state=None
-                )
+                item = MemoryItem(state=state, action=[1, 0], next_state=None)
                 game_data.append(item)
 
             if len(game_data) > 0:
@@ -235,7 +229,7 @@ if __name__ == "__main__":
 
             action = agent.act(np.array(state))
             next_state, reward, done = env.step(action)
-            #cv2.imwrite(f"tmp/{game_data.total_frames()}.png", next_state)
+            # cv2.imwrite(f"tmp/{game_data.total_frames()}.png", next_state)
 
             # The reward goes back one memory item since that is the action that created it.
             # same wth the terminal state.
@@ -250,32 +244,24 @@ if __name__ == "__main__":
             else:
                 action = [0, 1]
 
-            game_data.append(
-                MemoryItem(
-                    state=next_state,
-                    action=action,
-                )
-            )
+            game_data.append(MemoryItem(state=next_state, action=action))
 
             # causal image reshaping and merging
             # 1: get the past 4 images
             # 2: average them into a single image.
             # 3: Reshape for keras 2d.
-            #agent.remember(
+            # agent.remember(
             #    np.reshape(np.mean(np.array(local_screen_history[-8:-4]), axis=0), (x, y, 1)),
             #    action,
             #    reward,
             #    np.reshape(np.mean(np.array(local_screen_history[-4:]), axis=0), (x, y, 1)),
             #    done
-            #)
-
-
-
+            # )
 
             # update epsilon
             if agent.epsilon > agent.epsilon_min and FRAME_COUNT > agent.observe_rate:
                 agent.epsilon -= (agent.start_epsilon - agent.epsilon_min) / agent.explore_rate
-            #if agent.epsilon > agent.epsilon_min and frame_count > agent.observe_rate:
+            # if agent.epsilon > agent.epsilon_min and frame_count > agent.observe_rate:
             #    agent.epsilon *= agent.epsilon_decay
 
         if len(game_data) > 10:
@@ -289,9 +275,16 @@ if __name__ == "__main__":
                 agent.save()
 
         FRAME_COUNT += game_data.total_frames()
-        logger.debug("Finished EPISODE.", frame_count=FRAME_COUNT, episode=e, score=game_data.score, epsilon=agent.epsilon, memory_len=len(agent.memory), game_length=len(game_data))
+        logger.debug(
+            "Finished EPISODE.",
+            frame_count=FRAME_COUNT,
+            episode=e,
+            score=game_data.score,
+            epsilon=agent.epsilon,
+            memory_len=len(agent.memory),
+            game_length=len(game_data),
+        )
         logger.debug("Stats", loss=np.mean(agent.loss_history), acc=np.mean(agent.acc_history))
 
 
-#cv2.imwrite(f"tmp/{a}_screen.png", a._grab_screen())
-
+# cv2.imwrite(f"tmp/{a}_screen.png", a._grab_screen())

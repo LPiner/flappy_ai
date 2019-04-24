@@ -1,17 +1,18 @@
+import time
+
 import attr
+import cv2
+import mss
+import numpy as np
 from selenium import webdriver
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.firefox.webdriver import FirefoxWebElement
-import time
-from flappy_ai.types.keys import Keys
+from structlog import get_logger
+
 from flappy_ai.factories.selenium_key_factory import selenium_key_factory
 from flappy_ai.models.image import Image
-import numpy
-import mss
-from structlog import get_logger
-import numpy as np
-import cv2
+from flappy_ai.types.keys import Keys
 
 logger = get_logger(__name__)
 
@@ -19,7 +20,7 @@ logger = get_logger(__name__)
 @attr.s(auto_attribs=True)
 class Game:
     headless: bool = attr.ib(default=False)
-    _game_over: bool =attr.ib(init=False, default=False)
+    _game_over: bool = attr.ib(init=False, default=False)
     _browser: webdriver = attr.ib(init=False)
     _game_element: FirefoxWebElement = attr.ib(init=False, default=None)
 
@@ -38,7 +39,7 @@ class Game:
     def state_shape() -> (int, int):
         return (160, 120)
         # If ever want to go back to single image greyscale
-        #return (160, 120, 1)
+        # return (160, 120, 1)
 
     def quit(self):
         if self._browser:
@@ -49,7 +50,7 @@ class Game:
         options.headless = self.headless
         self._browser = webdriver.Firefox(options=options)
         self._browser.set_window_size(self._browser_width, self._browser_height)
-        self._browser.get('https://flappybird.io/')
+        self._browser.get("https://flappybird.io/")
         self._game_element = self._browser.find_element_by_id(id_="testCanvas")
         pos = self._browser.get_window_position()
         self._pos_x = pos["x"]
@@ -71,9 +72,9 @@ class Game:
         image = cv2.imdecode(image, cv2.IMREAD_COLOR)
         image = image[::4, ::4]
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        #import matplotlib.pyplot as plt
-        #plt.imshow(image)
-        #plt.show()
+        # import matplotlib.pyplot as plt
+        # plt.imshow(image)
+        # plt.show()
         return Image(image)
 
     def _grab_screen_legacy(self) -> Image:
@@ -85,12 +86,7 @@ class Game:
         # In flappy bird half the screen is worthless so we can just filter it out.
         start_x = self._pos_x + 165
         start_y = self._pos_y + 35
-        region = {
-            "top": start_x,
-            "left": start_y + 160,
-            "width": start_x + 155,
-            "height": start_y + 595,
-        }
+        region = {"top": start_x, "left": start_y + 160, "width": start_x + 155, "height": start_y + 595}
         with mss.mss() as sct:
             screen = sct.grab(region)
 
@@ -122,7 +118,7 @@ class Game:
             # Template matching is very good for exact matches.
             match = cv2.matchTemplate(screen.as_greyscale(), self._game_over_button, cv2.TM_CCOEFF_NORMED)
             match = numpy.where(match >= 0.8)
-            #logger.debug("[find_match_with_template]", runtime=time.time() - start_time, m=match)
+            # logger.debug("[find_match_with_template]", runtime=time.time() - start_time, m=match)
             if match is None or not match[0].size:
                 return False
             return True
@@ -144,14 +140,13 @@ class Game:
     def reset(self):
         self.input(Keys.SPACE)
         self.input(Keys.SPACE)
-        time.sleep(.5)
+        time.sleep(0.5)
 
     def _state(self) -> Image:
         return self._grab_screen()
 
     def input(self, key: Keys):
         key = selenium_key_factory(key=key)
-        #element = self._browser.find_element_by_tag_name("canvas")
+        # element = self._browser.find_element_by_tag_name("canvas")
         actions = ActionChains(driver=self._browser)
         actions.send_keys(key).perform()
-

@@ -1,9 +1,11 @@
-import attr
-from flappy_ai.models.game_data import GameData
-from flappy_ai.models.memory_item import MemoryItem
 import random
 from collections import deque
 from typing import List
+
+import attr
+
+from flappy_ai.models.game_data import GameData
+from flappy_ai.models.memory_item import MemoryItem
 
 
 @attr.s(auto_attribs=True)

@@ -1,5 +1,6 @@
-from flappy_ai.types.keys import Keys
 from selenium.webdriver.common.keys import Keys as SeleniumKeys
+
+from flappy_ai.types.keys import Keys
 
 
 def selenium_key_factory(key: Keys) -> SeleniumKeys:

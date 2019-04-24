@@ -1,10 +1,12 @@
-from flappy_ai.models.fit_data import FitData
-import matplotlib.pyplot as plt
+import json
+import time
 from typing import List
+
+import matplotlib.pyplot as plt
 from cattr import structure
 from structlog import get_logger
-import time
-import json
+
+from flappy_ai.models.fit_data import FitData
 
 logger = get_logger(__name__)
 
@@ -12,9 +14,9 @@ logger = get_logger(__name__)
 # Plotting Stuff
 plt.ion()
 
-f, axarr = plt.subplots(3,1)
+f, axarr = plt.subplots(3, 1)
 f.subplots_adjust(hspace=0.3)
-f.suptitle('Results Over Time')
+f.suptitle("Results Over Time")
 
 axarr[0].set_title("Loss")
 axarr[0].plot([])
@@ -23,7 +25,6 @@ axarr[1].plot([])
 axarr[2].set_title("Score Per Episode")
 axarr[2].plot([])
 plt.legend()
-
 
 
 while True:
@@ -55,4 +56,3 @@ while True:
     except FileNotFoundError as e:
         logger.warn("Unable to load saved memory.")
     plt.pause(60)
-
