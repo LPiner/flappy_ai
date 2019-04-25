@@ -1,5 +1,5 @@
-from flappy_ai.types.network_types import NetworkTypes
 from flappy_ai.config import dqn_config
+from flappy_ai.types.network_types import NetworkTypes
 
 
 def network_factory(network_type: NetworkTypes):

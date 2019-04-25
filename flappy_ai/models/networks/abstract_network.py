@@ -1,10 +1,10 @@
-import attr
 from abc import ABCMeta, abstractmethod
+
+import attr
 
 
 @attr.s(auto_attribs=True)
 class AbstractNetwork(metaclass=ABCMeta):
-
     @abstractmethod
     def predict(self, state: any) -> int:
         raise NotImplementedError()
@@ -24,4 +24,3 @@ class AbstractNetwork(metaclass=ABCMeta):
     @abstractmethod
     def save(self):
         raise NotImplementedError()
-

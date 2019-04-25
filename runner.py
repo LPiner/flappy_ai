@@ -12,12 +12,12 @@ from flappy_ai.types.network_types import NetworkTypes
 
 logger = get_logger(__name__)
 
-MAX_CLIENTS = 1
+MAX_CLIENTS = 5
 CLIENTS: List[GameProcess] = []
 KERAS_PROCESS = None
 
 # https://towardsdatascience.com/epoch-vs-iterations-vs-batch-size-4dfb9c7ce9c9
-EPISODES = 10000  # TODO, figure out a optimal number
+EPISODES = 30000  # TODO, figure out a optimal number
 
 if __name__ == "__main__":
     KERAS_PROCESS = KerasProcess()

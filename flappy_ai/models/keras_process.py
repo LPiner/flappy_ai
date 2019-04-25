@@ -2,13 +2,13 @@ import time
 from multiprocessing.connection import PipeConnection
 
 import attr
+import numpy as np
 from structlog import get_logger
 
+from flappy_ai.factories.network_factory import network_factory
 from flappy_ai.models import EpisodeResult, PredictionRequest, PredictionResult
 from flappy_ai.models.process_base import ProcessBase
 from flappy_ai.types.network_types import NetworkTypes
-from flappy_ai.factories.network_factory import network_factory
-import numpy as np
 
 logger = get_logger(__name__)
 
@@ -16,7 +16,7 @@ logger = get_logger(__name__)
 @attr.s(auto_attribs=True)
 class KerasProcess(ProcessBase):
     @staticmethod
-    def _process_execute(child_pipe: PipeConnection, *args, network_type: NetworkTypes=None, **kwargs):
+    def _process_execute(child_pipe: PipeConnection, *args, network_type: NetworkTypes = None, **kwargs):
 
         last_update = time.time()
         AGENT = network_factory(network_type=network_type)

@@ -1,8 +1,9 @@
 import json
 import random
 import time
-from typing import List
+from typing import List, Tuple
 
+import attr
 import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
@@ -15,10 +16,8 @@ from structlog import get_logger
 
 from flappy_ai.models.fit_data import FitData
 from flappy_ai.models.game_history import GameHistory
-from flappy_ai.models.networks.abstract_network import AbstractNetwork
 from flappy_ai.models.network_configs.dqn_config import DQNConfig
-from typing import Tuple
-import attr
+from flappy_ai.models.networks.abstract_network import AbstractNetwork
 
 logger = get_logger(__name__)
 config = tf.ConfigProto()
@@ -145,8 +144,16 @@ class DQNNetwork(AbstractNetwork):
             batch_size=len(start_states),
             verbose=0,
         )
-        if self._session_epsilon > self.config.epsilon_min and len(self.memory) > self.config.observe_rate:
-            self._session_epsilon -= (self.config.start_epsilon - self.config.epsilon_min) / self.config.explore_rate
+        # Annealing linearly
+        # we want to reduce e over a set number of frames
+        # just check that we have the required observation frames before doing so
+        if (
+            self._session_epsilon > self.config.epsilon_min
+            and len(self.memory) > self.config.observe_frames_before_learning
+        ):
+            self._session_epsilon -= (
+                self.config.start_epsilon - self.config.epsilon_min
+            ) / self.config.anneal_epsilon_over_x_frames
 
         self.fit_history.append(
             FitData(epsilon=self._session_epsilon, loss=history.history["loss"][0], accuracy=history.history["acc"][0])

@@ -54,18 +54,13 @@ class GameProcess(ProcessBase):
                 start_wait_time = time.time()
                 action: PredictionResult = child_pipe.recv()
                 wait_time = time.time() - start_wait_time
-                #if wait_time > 0.02:
+                # if wait_time > 0.02:
                 #    logger.warn("[GameProcess] Took too long to receive action, tossing game!", wait_time=wait_time)
-                    # If we take too long for an action then the states will not line up
-                    # So we just toss the game.
+                # If we take too long for an action then the states will not line up
+                # So we just toss the game.
                 #    return
                 next_state, reward, done = env.step(action.result)
                 screen_history.append(next_state)
-                import cv2
-                cv2.imwrite(f"img/game/{len(screen_history)}.png", next_state)
-                next_state = np.stack(np.array(screen_history[-4:]), axis=2)
-                cv2.imwrite(f"img/game/{len(screen_history)}_merged.png", next_state)
-                # cv2.imwrite(f"tmp/{game_data.total_frames()}.png", next_state)
 
                 # The reward goes back one memory item since that is the action that created it.
                 # same wth the terminal state.
@@ -88,7 +83,7 @@ class GameProcess(ProcessBase):
                 game_data.append(MemoryItem(state=next_state, action=taken_action))
 
                 loop_time = time.time() - start_time
-                if loop_time > .20:
+                if loop_time > 0.20:
                     logger.warn("[GameProcess] Took to long to complete loop, tossing game!", loop_time=loop_time)
                     return
                 # Handy to know how long it takes to complete a game.
