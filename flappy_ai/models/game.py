@@ -90,13 +90,13 @@ class Game:
         with mss.mss() as sct:
             screen = sct.grab(region)
 
-        screen = numpy.array(screen)
+        screen = np.array(screen)
         screen = screen[::4, ::4]
         screen = cv2.cvtColor(screen, cv2.COLOR_BGR2RGB)
         screen = Image(screen)
         return screen
 
-    def step(self, action) -> (numpy.array, int, bool):
+    def step(self, action) -> (np.array, int, bool):
         if action == 0:
             pass
         elif action == 1:
@@ -107,7 +107,7 @@ class Game:
         def game_over(screen: Image):
 
             # Find colors that only the bird is going to have.
-            mask = cv2.inRange(screen.as_HSV(), lowerb=numpy.array([0, 100, 100]), upperb=numpy.array([15, 255, 255]))
+            mask = cv2.inRange(screen.as_HSV(), lowerb=np.array([0, 100, 100]), upperb=np.array([15, 255, 255]))
             points = cv2.findNonZero(mask)
             # merge our findings together.
 
@@ -117,7 +117,7 @@ class Game:
 
             # Template matching is very good for exact matches.
             match = cv2.matchTemplate(screen.as_greyscale(), self._game_over_button, cv2.TM_CCOEFF_NORMED)
-            match = numpy.where(match >= 0.8)
+            match = np.where(match >= 0.8)
             # logger.debug("[find_match_with_template]", runtime=time.time() - start_time, m=match)
             if match is None or not match[0].size:
                 return False

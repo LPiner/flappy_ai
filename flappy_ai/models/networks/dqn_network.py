@@ -7,7 +7,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 from cattr import structure, unstructure
-from keras.callbacks import TensorBoard
 from keras.layers import (BatchNormalization, Conv2D, Dense, Flatten, Input,
                           Lambda)
 from keras.models import Sequential
@@ -15,26 +14,40 @@ from keras.optimizers import RMSprop
 from structlog import get_logger
 
 from flappy_ai.models.fit_data import FitData
-from flappy_ai.models.game import Game
-from flappy_ai.models.game_data import GameData
 from flappy_ai.models.game_history import GameHistory
-from flappy_ai.models.memory_item import MemoryItem
+from flappy_ai.models.networks.abstract_network import AbstractNetwork
+from flappy_ai.models.network_configs.dqn_config import DQNConfig
+from typing import Tuple
+import attr
 
 logger = get_logger(__name__)
 config = tf.ConfigProto()
 config.gpu_options.allow_growth = True
 session = tf.Session(config=config)
 
-EPISODES = 100000
 
+@attr.s(auto_attribs=True)
+class DQNNetwork(AbstractNetwork):
+    config: DQNConfig
 
-class DQNAgent:
-    def __init__(self, action_size):
-        self.data_shape = (160, 120, 4)
-        self.action_size = action_size
-        self.memory = GameHistory(size=100000)
-        self.gamma = 0.99  # discount rate
-        # self.epsilon = 1.0  # exploration rate
+    # TODO, abstract these
+    data_shape: Tuple[int, int, int] = attr.ib(default=(160, 120, 4))
+    action_size: int = attr.ib(default=2)
+
+    memory: GameHistory = attr.ib(default=None, init=False)
+    model: any = attr.ib(default=None, init=False)
+    fit_history: List[FitData] = attr.ib(default=attr.Factory(list), init=False)
+
+    _session_epsilon: float = attr.ib(default=None, init=False)
+
+    def __attrs_post_init__(self):
+        self.memory = GameHistory(size=self.config.memory_size)
+        self.model = self._build_model()
+
+        self._session_epsilon = self.config.start_epsilon
+
+    def _build_model(self):
+
         """
         E is best ot start at 1 but we dont want the bird to flap too much.
         # see https://github.com/yenchenlin/DeepLearningFlappyBird
@@ -46,16 +59,6 @@ class DQNAgent:
          We trained for a total of10million frames and used a replay
          memory of one million most recent frames.
         """
-        self.start_epsilon = 1
-        self.epsilon = self.start_epsilon
-        self.epsilon_min = 0.1
-        self.explore_rate = 10000  # Games before e becomes e min.
-        self.observe_rate = 500  # games before we start training
-        self.learning_rate = 0.001
-        self.model = self._build_model()
-        self.fit_history: List[FitData] = []
-
-    def _build_model(self):
 
         # Deepmind paper on their atari breakout agent.
         # https://arxiv.org/pdf/1312.5602v1.pdf
@@ -77,12 +80,12 @@ class DQNAgent:
         # Info on opts
         # http://ruder.io/optimizing-gradient-descent/
 
-        opt = RMSprop(lr=self.learning_rate)
+        opt = RMSprop(lr=self.config.learning_rate)
         model.compile(loss="mean_squared_error", optimizer=opt, metrics=["accuracy"])
 
         return model
 
-    def predict(self, state):
+    def predict(self, state) -> int:
         """
         Note for later, predict expects and returns an array of items.
         so it wants an array of states, even if we only have 1 it still needs to be in a shape of (1, x, x, x)
@@ -94,20 +97,13 @@ class DQNAgent:
         """
         act_values = self.model.predict(np.expand_dims(state, axis=0))
         # act_values -> array([[ -3.0126321, -11.75323  ]], dtype=float32)
+        return np.argmax(act_values[0])
 
-        random_action = False
-        if np.random.rand() <= self.epsilon:
-            random_action = True
-            action = random.randrange(2)
-        else:
-            action = np.argmax(act_values[0])  # returns action
-
-        # logger.debug("[act]", predicted_actions=act_values.tolist(), using_random_action=random_action, chosen_action=action)
-
-        return action
+    def predict_random(self, state) -> int:
+        return random.randrange(self.action_size)
 
     # def fit_batch(self, start_states, actions, rewards, next_states, is_terminal):
-    def fit_batch(self, batch_items: List[MemoryItem]):
+    def fit_batch(self):
         """Do one deep Q learning iteration.
 
         Params:
@@ -123,6 +119,8 @@ class DQNAgent:
         plt.imshow(start_states[0][:,:,0], cmap=plt.cm.binary)
         though the colors will be fucked
         """
+        batch_items = self.memory.get_sample_batch(batch_size=self.config.batch_size)
+
         start_states = np.array([x.state for x in batch_items])
         actions = np.array([x.action for x in batch_items])
         rewards = np.array([x.reward for x in batch_items])
@@ -135,7 +133,7 @@ class DQNAgent:
         # The Q values of the terminal states is 0 by definition, so override them
         next_Q_values[is_terminal] = 0
         # The Q values of each start state is the reward + gamma * the max next state Q value
-        Q_values = rewards + self.gamma * np.max(next_Q_values, axis=1)
+        Q_values = rewards + self.config.gamma * np.max(next_Q_values, axis=1)
         # Fit the keras model. Note how we are passing the actions as the mask and multiplying
         # the targets by the actions.
         # tensorboard = TensorBoard(log_dir=f"logs/")
@@ -147,14 +145,16 @@ class DQNAgent:
             batch_size=len(start_states),
             verbose=0,
         )
+        if self._session_epsilon > self.config.epsilon_min and len(self.memory) > self.config.observe_rate:
+            self._session_epsilon -= (self.config.start_epsilon - self.config.epsilon_min) / self.config.explore_rate
 
         self.fit_history.append(
-            FitData(epsilon=self.epsilon, loss=history.history["loss"][0], accuracy=history.history["acc"][0])
+            FitData(epsilon=self._session_epsilon, loss=history.history["loss"][0], accuracy=history.history["acc"][0])
         )
 
     def load(self):
         try:
-            self.model.load_weights("save/flappy.h5")
+            self.model.load_weights(self.config.save_location)
         except OSError as e:
             logger.warn("Unable to load saved weights.")
 
@@ -166,11 +166,11 @@ class DQNAgent:
                     self.fit_history.append(structure(item, FitData))
 
                 if self.fit_history:
-                    self.epsilon = self.fit_history[-1].epsilon
+                    self._session_epsilon = self.fit_history[-1].epsilon
         except FileNotFoundError as e:
             logger.warn("Unable to load saved memory.")
 
     def save(self):
-        self.model.save_weights("save/flappy.h5")
+        self.model.save_weights(self.config.save_location)
         with open("save/data.json", "w+") as file:
             file.write(json.dumps({"fit_history": unstructure(self.fit_history)}))

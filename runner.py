@@ -8,20 +8,20 @@ from structlog import get_logger
 from flappy_ai.models import EpisodeResult, PredictionRequest
 from flappy_ai.models.game_process import GameProcess
 from flappy_ai.models.keras_process import KerasProcess
+from flappy_ai.types.network_types import NetworkTypes
 
 logger = get_logger(__name__)
 
-MAX_CLIENTS = 5
+MAX_CLIENTS = 1
 CLIENTS: List[GameProcess] = []
 KERAS_PROCESS = None
 
 # https://towardsdatascience.com/epoch-vs-iterations-vs-batch-size-4dfb9c7ce9c9
-BATCH_SIZE = 32
 EPISODES = 10000  # TODO, figure out a optimal number
 
 if __name__ == "__main__":
     KERAS_PROCESS = KerasProcess()
-    KERAS_PROCESS.start(batch_size=BATCH_SIZE)
+    KERAS_PROCESS.start(network_type=NetworkTypes.DQN)
     # Give the keras process time to spin up, load models, etc.
     time.sleep(5)
     CURRENT_EPISODES = 0
@@ -31,8 +31,7 @@ if __name__ == "__main__":
 
     while True:
         if not KERAS_PROCESS.is_alive():
-            KERAS_PROCESS.start(batch_size=BATCH_SIZE)
-            logger.warn("Keras process died....")
+            raise Exception("Keras process died.")
 
         # Calls join on completed processes but does not block. =)
         multiprocessing.active_children()

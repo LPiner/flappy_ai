@@ -2,13 +2,13 @@ import time
 from multiprocessing.connection import PipeConnection
 
 import attr
-import matplotlib.pyplot as plt
-import numpy as np
 from structlog import get_logger
 
 from flappy_ai.models import EpisodeResult, PredictionRequest, PredictionResult
-from flappy_ai.models.game import Game
 from flappy_ai.models.process_base import ProcessBase
+from flappy_ai.types.network_types import NetworkTypes
+from flappy_ai.factories.network_factory import network_factory
+import numpy as np
 
 logger = get_logger(__name__)
 
@@ -16,11 +16,10 @@ logger = get_logger(__name__)
 @attr.s(auto_attribs=True)
 class KerasProcess(ProcessBase):
     @staticmethod
-    def _process_execute(child_pipe: PipeConnection, *args, batch_size=32, **kwargs):
-        from flappy_ai.models.dqn_agent import DQNAgent
+    def _process_execute(child_pipe: PipeConnection, *args, network_type: NetworkTypes=None, **kwargs):
 
         last_update = time.time()
-        AGENT = DQNAgent(Game.actions())
+        AGENT = network_factory(network_type=network_type)
         AGENT.load()
 
         while True:
@@ -30,18 +29,20 @@ class KerasProcess(ProcessBase):
             request = child_pipe.recv()
 
             if isinstance(request, PredictionRequest):
-                result = AGENT.predict(request.data)
+
+                if np.random.rand() <= AGENT._session_epsilon or request.no_random:
+                    result = AGENT.predict_random(request.data)
+                else:
+                    result = AGENT.predict(request.data)
+
                 child_pipe.send(PredictionResult(result=result))
+
             elif isinstance(request, EpisodeResult):
                 for item in request.game_data:
                     AGENT.memory.append(item)
-                    if len(AGENT.memory) > AGENT.observe_rate:
-                        start_time = time.time()
-                        AGENT.fit_batch(AGENT.memory.get_sample_batch(batch_size=batch_size))
+                    if len(AGENT.memory) > AGENT.config.observe_rate:
+                        AGENT.fit_batch()
                         # logger.debug("[KerasProcess] Fit Batch Complete", runtime=time.time()-start_time, batch_size=batch_size)
-
-                        if AGENT.epsilon > AGENT.epsilon_min and len(AGENT.memory) > AGENT.observe_rate:
-                            AGENT.epsilon -= (AGENT.start_epsilon - AGENT.epsilon_min) / AGENT.explore_rate
 
             elif request is None:
                 AGENT.save()
