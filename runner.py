@@ -77,6 +77,9 @@ if __name__ == "__main__":
 
             while EPISODE_RESULTS:
                 KERAS_PROCESS.parent_pipe.send(EPISODE_RESULTS.pop())
+            while KERAS_PROCESS.parent_pipe.poll():
+                # Ensure that keras is done training before starting new games.
+                    time.sleep(.1)
 
         # If we are still below the targets interations, refill the clients and continue
         if COMPLETED_EPISODES >= EPISODES:

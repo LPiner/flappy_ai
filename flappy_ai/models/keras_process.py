@@ -24,6 +24,7 @@ class KerasProcess(ProcessBase):
 
         while True:
             if not child_pipe.poll():
+                time.sleep(0.01)
                 continue
 
             request = child_pipe.recv()
@@ -40,7 +41,7 @@ class KerasProcess(ProcessBase):
             elif isinstance(request, EpisodeResult):
                 for item in request.game_data:
                     AGENT.memory.append(item)
-                    if len(AGENT.memory) > AGENT.config.observe_rate:
+                    if len(AGENT.memory) > AGENT.config.observe_frames_before_learning:
                         AGENT.fit_batch()
                         # logger.debug("[KerasProcess] Fit Batch Complete", runtime=time.time()-start_time, batch_size=batch_size)
 
@@ -53,6 +54,6 @@ class KerasProcess(ProcessBase):
             if (time.time() - last_update) / 60 > 5:
                 # Only print updates and save every 5 minutes
                 last_update = time.time()
-                logger.debug("KERAS PROCESS UPDATE", epsilon=AGENT.epsilon, memory_len=len(AGENT.memory))
+                logger.debug("KERAS PROCESS UPDATE", epsilon=AGENT._session_epsilon, memory_len=len(AGENT.memory))
                 # logger.debug("Stats", loss=np.mean(AGENT.loss_history), acc=np.mean(AGENT.acc_history))
                 AGENT.save()
