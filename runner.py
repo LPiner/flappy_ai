@@ -9,6 +9,8 @@ from flappy_ai.models import EpisodeResult, PredictionRequest
 from flappy_ai.models.game_process import GameProcess
 from flappy_ai.models.keras_process import KerasProcess
 from flappy_ai.types.network_types import NetworkTypes
+from flappy_ai.models.sql_models.saved_episode_result import SavedEpisodeResult
+from flappy_ai import Session
 
 logger = get_logger(__name__)
 
@@ -20,12 +22,20 @@ KERAS_PROCESS = None
 EPISODES = 30000  # TODO, figure out a optimal number
 
 if __name__ == "__main__":
+    session = Session()
+    result = session.query(SavedEpisodeResult).order_by(SavedEpisodeResult.episode_number.desc()).first()
+    if not result:
+        CURRENT_EPISODES = 0
+        COMPLETED_EPISODES = 0
+    else:
+        CURRENT_EPISODES = result.episode_number
+        COMPLETED_EPISODES = result.episode_number
+        logger.debug("Loaded episode info.", starting_episode=CURRENT_EPISODES)
+
     KERAS_PROCESS = KerasProcess()
     KERAS_PROCESS.start(network_type=NetworkTypes.DQN)
     # Give the keras process time to spin up, load models, etc.
-    time.sleep(5)
-    CURRENT_EPISODES = 0
-    COMPLETED_EPISODES = 0
+    time.sleep(20)
     last_update = time.time()
     EPISODE_RESULTS: List[EpisodeResult] = []
 
@@ -41,8 +51,8 @@ if __name__ == "__main__":
                 # Queue is FIFO
                 # we may need to toss data if we get too slow?
                 request = client.parent_pipe.recv()
-                KERAS_PROCESS.parent_pipe.send(request)
                 if isinstance(request, PredictionRequest):
+                    KERAS_PROCESS.parent_pipe.send(request)
                     client.parent_pipe.send(KERAS_PROCESS.parent_pipe.recv())
                 elif isinstance(request, EpisodeResult):
                     # The end result of the session
@@ -62,24 +72,17 @@ if __name__ == "__main__":
         # Do the batch training after all the clients have completed
         # Maybe I need to abstract the training out to it's own process?
         if not CLIENTS:
-            episodes_results = []
-            try:
-                with open("save/episode_results.json", "r") as f:
-                    episodes_results = json.loads(f.read()).get("episode_results", [])
-            except (json.JSONDecodeError, FileNotFoundError):
-                pass
-
-            with open("save/episode_results.json", "w+") as f:
-                episodes_results += [
-                    {"episode": x.game_data.episode_number, "score": x.game_data.score} for x in EPISODE_RESULTS
-                ]
-                f.write(json.dumps({"episode_results": episodes_results}))
+            session = Session()
+            session.bulk_save_objects(
+                [SavedEpisodeResult(episode_number=x.game_data.episode_number, score=x.game_data.score) for x in EPISODE_RESULTS]
+            )
+            session.commit()
 
             while EPISODE_RESULTS:
                 KERAS_PROCESS.parent_pipe.send(EPISODE_RESULTS.pop())
-            while KERAS_PROCESS.parent_pipe.poll():
-                # Ensure that keras is done training before starting new games.
-                    time.sleep(.1)
+
+                # We just want to make sure that we're done training before moving on.
+                KERAS_PROCESS.parent_pipe.recv()
 
         # If we are still below the targets interations, refill the clients and continue
         if COMPLETED_EPISODES >= EPISODES:

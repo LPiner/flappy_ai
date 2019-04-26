@@ -17,6 +17,7 @@ structlog = "*"
 attrs = "*"
 cattrs = "*"
 pre-commit = "*"
+sqlalchemy = "*"
 
 [requires]
 python_version = "3.7"

@@ -2,6 +2,7 @@ import json
 import random
 import time
 from typing import List, Tuple
+from flappy_ai import Session
 
 import attr
 import matplotlib.pyplot as plt
@@ -14,7 +15,7 @@ from keras.models import Sequential
 from keras.optimizers import RMSprop
 from structlog import get_logger
 
-from flappy_ai.models.fit_data import FitData
+from flappy_ai.models.sql_models.fit_data import FitData
 from flappy_ai.models.game_history import GameHistory
 from flappy_ai.models.network_configs.dqn_config import DQNConfig
 from flappy_ai.models.networks.abstract_network import AbstractNetwork
@@ -35,7 +36,6 @@ class DQNNetwork(AbstractNetwork):
 
     memory: GameHistory = attr.ib(default=None, init=False)
     model: any = attr.ib(default=None, init=False)
-    fit_history: List[FitData] = attr.ib(default=attr.Factory(list), init=False)
 
     _session_epsilon: float = attr.ib(default=None, init=False)
 
@@ -155,29 +155,29 @@ class DQNNetwork(AbstractNetwork):
                 self.config.start_epsilon - self.config.epsilon_min
             ) / self.config.anneal_epsilon_over_x_frames
 
-        self.fit_history.append(
-            FitData(epsilon=self._session_epsilon, loss=history.history["loss"][0], accuracy=history.history["acc"][0])
+
+        session = Session()
+        session.add(
+            FitData(
+                epsilon=self._session_epsilon,
+                loss=history.history["loss"][0],
+                accuracy=history.history["acc"][0]
+            )
         )
+        session.commit()
 
     def load(self):
+        session = Session()
+        result = session.query(FitData).order_by(FitData.id.desc()).first()
+        if result:
+            self._session_epsilon = result.epsilon
+            logger.debug("Loaded Epsilon Data", epsilon=self._session_epsilon)
+
         try:
             self.model.load_weights(self.config.save_location)
         except OSError as e:
             logger.warn("Unable to load saved weights.")
-
-        try:
-            with open("save/data.json", "r") as file:
-                data = json.loads(file.read())
-                self.fit_history: List[FitData] = []
-                for item in data.get("fit_history", []):
-                    self.fit_history.append(structure(item, FitData))
-
-                if self.fit_history:
-                    self._session_epsilon = self.fit_history[-1].epsilon
-        except FileNotFoundError as e:
-            logger.warn("Unable to load saved memory.")
+        #self._session_epsilon = self.fit_history[-1].epsilon
 
     def save(self):
         self.model.save_weights(self.config.save_location)
-        with open("save/data.json", "w+") as file:
-            file.write(json.dumps({"fit_history": unstructure(self.fit_history)}))

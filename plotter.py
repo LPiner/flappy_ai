@@ -6,7 +6,9 @@ import matplotlib.pyplot as plt
 from cattr import structure
 from structlog import get_logger
 
-from flappy_ai.models.fit_data import FitData
+from flappy_ai.models.sql_models.saved_episode_result import SavedEpisodeResult
+from flappy_ai.models.sql_models.fit_data import FitData
+from flappy_ai import Session
 
 logger = get_logger(__name__)
 
@@ -28,31 +30,22 @@ plt.legend()
 
 
 while True:
+    session = Session()
+    score_history = session.query(SavedEpisodeResult).all()
+    fit_data = session.query(FitData).all()
+    score_history = sorted(score_history, key=lambda x: x.episode_number)
 
-    try:
-        with open("save/data.json", "r") as file:
-            data = json.loads(file.read())
-            fit_history: List[FitData] = [structure(x, FitData) for x in data.get("fit_history", [])]
-            if fit_history:
-                epsilon = fit_history[-1].epsilon
 
-        with open("save/episode_results.json", "r") as file:
-            data = json.loads(file.read())
-            score_history: List[dict] = data.get("episode_results", [])
-            score_history = sorted(score_history, key=lambda x: x["episode"])
+    plt.cla()
+    axarr[0].plot((range(0, len(fit_data))), [x.loss for x in fit_data])
+    axarr[1].plot((range(0, len(fit_data))), [x.accuracy for x in fit_data])
+    axarr[2].plot([x.episode_number for x in score_history], [x.score for x in score_history])
 
-        plt.cla()
-        axarr[0].plot((range(0, len(fit_history))), [x.loss for x in fit_history])
-        axarr[1].plot((range(0, len(fit_history))), [x.accuracy for x in fit_history])
-        axarr[2].plot([x["episode"] for x in score_history], [x["score"] for x in score_history])
-
-        axarr[0].relim()
-        axarr[0].autoscale_view(True, True, True)
-        axarr[1].relim()
-        axarr[1].autoscale_view(True, True, True)
-        axarr[2].relim()
-        axarr[2].autoscale_view(True, True, True)
-        plt.draw()
-    except FileNotFoundError as e:
-        logger.warn("Unable to load saved memory.")
+    axarr[0].relim()
+    axarr[0].autoscale_view(True, True, True)
+    axarr[1].relim()
+    axarr[1].autoscale_view(True, True, True)
+    axarr[2].relim()
+    axarr[2].autoscale_view(True, True, True)
+    plt.draw()
     plt.pause(60)

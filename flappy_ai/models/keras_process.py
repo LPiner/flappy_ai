@@ -44,7 +44,8 @@ class KerasProcess(ProcessBase):
                     if len(AGENT.memory) > AGENT.config.observe_frames_before_learning:
                         AGENT.fit_batch()
                         # logger.debug("[KerasProcess] Fit Batch Complete", runtime=time.time()-start_time, batch_size=batch_size)
-
+                # Let the runner know that we're done and ready for another task.
+                child_pipe.send(True)
             elif request is None:
                 AGENT.save()
                 # Shutdown request
