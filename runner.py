@@ -14,7 +14,7 @@ from flappy_ai import Session
 
 logger = get_logger(__name__)
 
-MAX_CLIENTS = 5
+MAX_CLIENTS = 1
 CLIENTS: List[GameProcess] = []
 KERAS_PROCESS = None
 

@@ -7,12 +7,14 @@ import numpy as np
 from selenium import webdriver
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.firefox.options import Options
-from selenium.webdriver.firefox.webdriver import FirefoxWebElement
+from selenium.webdriver.firefox.webdriver import FirefoxWebElement, FirefoxProfile
 from structlog import get_logger
 
 from flappy_ai.factories.selenium_key_factory import selenium_key_factory
 from flappy_ai.models.image import Image
 from flappy_ai.types.keys import Keys
+from pathlib import Path
+import os
 
 logger = get_logger(__name__)
 
@@ -47,20 +49,33 @@ class Game:
 
     def __enter__(self):
         options = Options()
+
         options.headless = self.headless
-        self._browser = webdriver.Firefox(options=options)
+        #options.log.level = "debug"
+        driver_path = Path(f"{os.path.dirname(__file__)}/../../geckodriver")
+
+        if not os.path.exists("/tmp/flappy_ai_profile"):
+            print(f"Please make a profile as seen https://stackoverflow.com/questions/22685755/retaining-cache-in-firefox-and-chrome-browser-selenium-webdriver")
+            print("Firefox will not cache DNS and will cause very long load times unless you do this.")
+            print("Save the profile under /tmp/flappy_ai_profile")
+            raise Exception
+
+        profile = FirefoxProfile("/tmp/flappy_ai_profile")
+        self._browser = webdriver.Firefox(options=options, executable_path=driver_path, firefox_profile=profile)
+        #driver_path = Path(f"{os.path.dirname(__file__)}/../../chromedriver")
+        #self._browser = webdriver.Chrome(options=options, executable_path=driver_path)
+
         self._browser.set_window_size(self._browser_width, self._browser_height)
         self._browser.get("https://flappybird.io/")
         self._game_element = self._browser.find_element_by_id(id_="testCanvas")
         pos = self._browser.get_window_position()
         self._pos_x = pos["x"]
         self._pos_y = pos["y"]
-        time.sleep(3)
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self._browser:
-            self._browser.close()
+            self._browser.quit()
 
     def _grab_screen(self) -> Image:
         """

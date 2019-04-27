@@ -1,7 +1,7 @@
 import atexit
 import time
 from multiprocessing import Pipe, Process
-from multiprocessing.connection import PipeConnection
+from multiprocessing.connection import Pipe
 
 import attr
 import numpy as np
@@ -14,8 +14,8 @@ from flappy_ai.models.game_data import GameData
 
 @attr.s(auto_attribs=True)
 class ProcessBase:
-    parent_pipe: PipeConnection = None  # data into the process
-    child_pipe: PipeConnection = None  # data out from the process
+    parent_pipe: Pipe = None  # data into the process
+    child_pipe: Pipe = None  # data out from the process
     _child_process: int = None
 
     def __attrs_post_init__(self):
@@ -25,7 +25,7 @@ class ProcessBase:
         atexit.register(self.cleanup)
 
     @staticmethod
-    def _process_execute(child_pipe: PipeConnection, *args, **kwargs):
+    def _process_execute(child_pipe: Pipe, *args, **kwargs):
         raise NotImplementedError
 
     def start(self, *args, **kwargs):

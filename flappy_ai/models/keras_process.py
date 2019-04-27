@@ -1,5 +1,5 @@
 import time
-from multiprocessing.connection import PipeConnection
+from multiprocessing.connection import Pipe
 
 import attr
 import numpy as np
@@ -16,7 +16,7 @@ logger = get_logger(__name__)
 @attr.s(auto_attribs=True)
 class KerasProcess(ProcessBase):
     @staticmethod
-    def _process_execute(child_pipe: PipeConnection, *args, network_type: NetworkTypes = None, **kwargs):
+    def _process_execute(child_pipe: Pipe, *args, network_type: NetworkTypes = None, **kwargs):
 
         last_update = time.time()
         AGENT = network_factory(network_type=network_type)

@@ -1,14 +1,10 @@
-import json
 import random
-import time
 from typing import List, Tuple
 from flappy_ai import Session
 
 import attr
-import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
-from cattr import structure, unstructure
 from keras.layers import (BatchNormalization, Conv2D, Dense, Flatten, Input,
                           Lambda)
 from keras.models import Sequential

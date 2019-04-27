@@ -18,6 +18,7 @@ attrs = "*"
 cattrs = "*"
 pre-commit = "*"
 sqlalchemy = "*"
+tkinter = "*"
 
 [requires]
 python_version = "3.7"

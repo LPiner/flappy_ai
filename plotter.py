@@ -1,7 +1,3 @@
-import json
-import time
-from typing import List
-
 import matplotlib.pyplot as plt
 from cattr import structure
 from structlog import get_logger
@@ -12,8 +8,6 @@ from flappy_ai import Session
 
 logger = get_logger(__name__)
 
-
-# Plotting Stuff
 plt.ion()
 
 f, axarr = plt.subplots(3, 1)

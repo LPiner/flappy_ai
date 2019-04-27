@@ -1,6 +1,6 @@
 import time
 from multiprocessing import Pipe, Process
-from multiprocessing.connection import PipeConnection
+from multiprocessing.connection import Pipe
 from typing import List
 
 import attr
@@ -19,9 +19,10 @@ logger = get_logger(__name__)
 @attr.s(auto_attribs=True)
 class GameProcess(ProcessBase):
     @staticmethod
-    def _process_execute(child_pipe: PipeConnection, *args, force_headless=True, episode_number=None, **kwargs):
+    def _process_execute(child_pipe: Pipe, *args, force_headless=True, episode_number=None, **kwargs):
         game_data = GameData(episode_number=episode_number)
 
+        session_start_time = time.time()
         with Game(headless=force_headless) as env:
 
             if child_pipe.poll() and child_pipe.recv() is None:
@@ -32,7 +33,7 @@ class GameProcess(ProcessBase):
 
             # https://danieltakeshi.github.io/2016/11/25/frame-skipping-and-preprocessing-for-deep-q-networks-on-atari-2600-games/
             screen_history: List[np.array] = []
-            while not env.game_over():
+            while True:
 
                 # A note for future games, it may be better to skip frames and repeat the last
                 # action during that time.
@@ -88,6 +89,6 @@ class GameProcess(ProcessBase):
         # Do not exit until the data has been read.
         # Exiting before causes the data to be lost.
         child_pipe.send(EpisodeResult(game_data=game_data))
-        logger.debug("[GameProcess] Completed.", average_loop_time=np.mean(loop_times))
+        logger.debug("[GameProcess] Completed.", average_loop_time=np.mean(loop_times), total_run_time=time.time()-session_start_time)
         while child_pipe.poll():
             time.sleep(1)
